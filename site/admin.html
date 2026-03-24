@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Participant Chat Lab Control Room</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=5">
+</head>
+<body class="admin-body">
+  <div class="page-shell">
+    <div class="ambient ambient-left"></div>
+    <div class="ambient ambient-right"></div>
+
+    <main class="admin-layout">
+      <section class="glass-panel admin-intro">
+        <p class="eyebrow">Control Room</p>
+        <h1>Adjust the chatbot without editing code.</h1>
+        <p class="admin-copy">These settings are stored on the backend and used for all new participant sessions.</p>
+        <div class="admin-token-row">
+          <label for="admin-token">Admin token</label>
+          <input id="admin-token" type="password" placeholder="Enter admin token">
+          <button id="load-config" type="button">Load</button>
+        </div>
+        <p id="admin-status" class="admin-status">Enter the token, then load the current configuration.</p>
+      </section>
+
+      <section class="glass-panel admin-form-card">
+        <form id="config-form" class="admin-form">
+          <div class="form-grid">
+            <label>
+              Bot name
+              <input name="bot_name" type="text" required>
+            </label>
+
+            <label>
+              Avatar label
+              <input name="avatar_label" type="text" maxlength="4" required>
+            </label>
+
+            <label>
+              Accent color
+              <input name="accent_color" type="text" placeholder="#f0b47a" required>
+            </label>
+
+            <label>
+              Temperature
+              <input name="temperature" type="number" min="0" max="1.5" step="0.1" required>
+            </label>
+
+            <label class="full-span">
+              Headline
+              <input name="headline" type="text" required>
+            </label>
+
+            <label class="full-span">
+              Subheadline
+              <input name="subheadline" type="text" required>
+            </label>
+
+            <label class="full-span">
+              Welcome message
+              <textarea name="welcome_message" rows="3" required></textarea>
+            </label>
+
+            <label class="full-span">
+              Research note
+              <textarea name="research_note" rows="2" required></textarea>
+            </label>
+
+            <label class="full-span">
+              Starter prompts
+              <textarea name="starter_prompts" rows="4" placeholder="One prompt per line" required></textarea>
+            </label>
+
+            <label class="full-span">
+              System prompt
+              <textarea name="system_prompt" rows="8" required></textarea>
+            </label>
+
+            <label class="full-span">
+              Image style prompt
+              <textarea name="image_style_prompt" rows="4" required></textarea>
+            </label>
+
+            <label>
+              Max turns
+              <input name="max_turns" type="number" min="1" max="100" required>
+            </label>
+
+            <label class="checkbox-row">
+              <input name="image_generation_enabled" type="checkbox">
+              Enable image generation
+            </label>
+          </div>
+
+          <div class="admin-actions">
+            <button id="save-config" type="submit">Save configuration</button>
+            <a class="ghost-link" href="./index.html">Open participant view</a>
+          </div>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script src="./config.js?v=5"></script>
+  <script src="./admin.js?v=5"></script>
+</body>
+</html>

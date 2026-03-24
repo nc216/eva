@@ -1,0 +1,128 @@
+import json
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+
+from app import config
+from app.models import BotConfig, PublicBotConfig
+
+_sessions: dict[str, dict[str, Any]] = {}
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _default_config() -> BotConfig:
+    return BotConfig()
+
+
+def ensure_bot_config() -> None:
+    config.ensure_data_dirs()
+    if not config.BOT_CONFIG_PATH.exists():
+        save_bot_config(_default_config())
+
+
+def load_bot_config() -> BotConfig:
+    ensure_bot_config()
+    data = json.loads(config.BOT_CONFIG_PATH.read_text())
+    return BotConfig.model_validate(data)
+
+
+def save_bot_config(bot_config: BotConfig) -> BotConfig:
+    config.ensure_data_dirs()
+    config.BOT_CONFIG_PATH.write_text(
+        json.dumps(bot_config.model_dump(), indent=2) + "\n"
+    )
+    return bot_config
+
+
+def get_public_bot_config() -> PublicBotConfig:
+    bot_config = load_bot_config()
+    return PublicBotConfig(
+        bot_name=bot_config.bot_name,
+        headline=bot_config.headline,
+        subheadline=bot_config.subheadline,
+        welcome_message=bot_config.welcome_message,
+        research_note=bot_config.research_note,
+        avatar_label=bot_config.avatar_label,
+        accent_color=bot_config.accent_color,
+        starter_prompts=bot_config.starter_prompts,
+        max_turns=bot_config.max_turns,
+        image_generation_enabled=bot_config.image_generation_enabled,
+    )
+
+
+def create_session(
+    participant_id: Optional[str] = None,
+    study_condition: Optional[str] = None,
+) -> dict[str, Any]:
+    bot_config = load_bot_config()
+    session_id = str(uuid.uuid4())
+    session = {
+        "session_id": session_id,
+        "participant_id": participant_id,
+        "study_condition": study_condition,
+        "bot_name": bot_config.bot_name,
+        "config_snapshot": bot_config.model_dump(),
+        "messages": [],
+        "created_at": _now_iso(),
+    }
+    _sessions[session_id] = session
+    persist_transcript(session)
+    return session
+
+
+def get_session(session_id: str) -> Optional[dict[str, Any]]:
+    return _sessions.get(session_id)
+
+
+def add_message(
+    session_id: str,
+    role: str,
+    content: str,
+    metadata: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    session = _sessions[session_id]
+    message = {
+        "role": role,
+        "content": content,
+        "timestamp": _now_iso(),
+    }
+    if metadata:
+        message["metadata"] = metadata
+    session["messages"].append(message)
+    persist_transcript(session)
+    return message
+
+
+def get_turn_count(session_id: str) -> int:
+    session = _sessions.get(session_id)
+    if session is None:
+        return 0
+    return sum(1 for message in session["messages"] if message["role"] == "user")
+
+
+def persist_transcript(session: dict[str, Any]) -> None:
+    transcript_path = Path(config.TRANSCRIPTS_DIR) / f"{session['session_id']}.json"
+    transcript_path.write_text(json.dumps(session, indent=2) + "\n")
+
+
+def save_generated_image(image_bytes: bytes, extension: str = "png") -> str:
+    image_name = f"{uuid.uuid4()}.{extension}"
+    image_path = Path(config.GENERATED_IMAGES_DIR) / image_name
+    image_path.write_bytes(image_bytes)
+    return image_name
+
+
+def get_last_generated_image_message(session_id: str) -> Optional[dict[str, Any]]:
+    session = _sessions.get(session_id)
+    if session is None:
+        return None
+
+    for message in reversed(session["messages"]):
+        metadata = message.get("metadata") or {}
+        if metadata.get("kind") == "image" and metadata.get("image_url"):
+            return message
+    return None

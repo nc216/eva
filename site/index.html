@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Participant Chat Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=5">
+</head>
+<body>
+  <div class="page-shell">
+    <div class="ambient ambient-left"></div>
+    <div class="ambient ambient-right"></div>
+
+    <main class="layout">
+      <section class="hero-panel glass-panel">
+        <div class="hero-topline hero-topline-minimal">
+          <a class="ghost-link" href="./admin.html">Control Room</a>
+        </div>
+
+        <div class="portrait-card portrait-card-minimal">
+          <div class="portrait-orbit"></div>
+          <div class="portrait-core" id="avatar-label">AS</div>
+          <div class="portrait-copy">
+            <p class="eyebrow">Live Study Agent</p>
+            <h1 id="bot-name">Aster</h1>
+          </div>
+        </div>
+      </section>
+
+      <section class="chat-panel glass-panel">
+        <div class="chat-topbar">
+          <div>
+            <p class="eyebrow">Session</p>
+            <h3 id="chat-title">Connecting…</h3>
+          </div>
+          <div class="session-meta">
+            <span class="status-dot"></span>
+            <span id="turn-status">Waiting</span>
+          </div>
+        </div>
+
+        <div class="chat-stream" id="chat-stream">
+          <div class="system-card">
+            <p class="system-card-title">Participant Chat</p>
+            <p id="welcome-copy">Loading the assistant…</p>
+          </div>
+        </div>
+
+        <div class="composer-shell">
+          <label class="composer-label" for="message-input">Message</label>
+          <div class="composer">
+            <textarea id="message-input" rows="1" placeholder="Type a message or ask for an image…" disabled></textarea>
+            <button id="send-button" type="button" disabled>Send</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./config.js?v=5"></script>
+  <script src="./app.js?v=5"></script>
+</body>
+</html>
