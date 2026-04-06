@@ -192,6 +192,30 @@ async def get_admin_config(x_admin_token: str | None = Header(default=None)) -> 
     return store.load_bot_config()
 
 
+@app.get("/api/admin/transcripts")
+async def list_admin_transcripts(
+    x_admin_token: str | None = Header(default=None),
+) -> dict:
+    require_admin_token(x_admin_token)
+    return {"transcripts": store.list_saved_transcripts()}
+
+
+@app.get("/api/admin/transcripts/{session_id}")
+async def get_admin_transcript(
+    session_id: str,
+    x_admin_token: str | None = Header(default=None),
+) -> dict:
+    require_admin_token(x_admin_token)
+
+    session = store.get_session(session_id)
+    if session is None:
+        session = store.load_saved_transcript(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Transcript not found")
+
+    return session
+
+
 @app.post("/api/admin/config", response_model=BotConfig)
 async def update_admin_config(
     payload: BotConfig,

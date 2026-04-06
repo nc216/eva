@@ -17,7 +17,11 @@ const fieldNames = [
   "research_note",
   "starter_prompts",
   "system_prompt",
+  "system_prompt_a",
+  "system_prompt_b",
   "image_style_prompt",
+  "image_style_prompt_a",
+  "image_style_prompt_b",
   "max_turns",
   "image_generation_enabled",
 ];
@@ -67,7 +71,11 @@ function fillForm(config) {
   field("research_note").value = config.research_note;
   field("starter_prompts").value = (config.starter_prompts || []).join("\n");
   field("system_prompt").value = config.system_prompt;
+  field("system_prompt_a").value = config.system_prompt_a || config.system_prompt;
+  field("system_prompt_b").value = config.system_prompt_b || config.system_prompt;
   field("image_style_prompt").value = config.image_style_prompt;
+  field("image_style_prompt_a").value = config.image_style_prompt_a || config.image_style_prompt;
+  field("image_style_prompt_b").value = config.image_style_prompt_b || config.image_style_prompt;
   field("max_turns").value = config.max_turns;
   field("image_generation_enabled").checked = Boolean(config.image_generation_enabled);
 }
@@ -88,7 +96,11 @@ function readForm() {
       .map((value) => value.trim())
       .filter(Boolean),
     system_prompt: field("system_prompt").value.trim(),
+    system_prompt_a: field("system_prompt_a").value.trim(),
+    system_prompt_b: field("system_prompt_b").value.trim(),
     image_style_prompt: field("image_style_prompt").value.trim(),
+    image_style_prompt_a: field("image_style_prompt_a").value.trim(),
+    image_style_prompt_b: field("image_style_prompt_b").value.trim(),
     max_turns: Number(field("max_turns").value),
     image_generation_enabled: field("image_generation_enabled").checked,
   };

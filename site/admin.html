@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=5">
+  <link rel="stylesheet" href="./styles.css?v=6">
 </head>
 <body class="admin-body">
   <div class="page-shell">
@@ -76,13 +76,33 @@
             </label>
 
             <label class="full-span">
-              System prompt
+              Default system prompt
               <textarea name="system_prompt" rows="8" required></textarea>
+            </label>
+
+            <label class="full-span">
+              Condition A system prompt
+              <textarea name="system_prompt_a" rows="8" required></textarea>
+            </label>
+
+            <label class="full-span">
+              Condition B system prompt
+              <textarea name="system_prompt_b" rows="8" required></textarea>
             </label>
 
             <label class="full-span">
               Image style prompt
               <textarea name="image_style_prompt" rows="4" required></textarea>
+            </label>
+
+            <label class="full-span">
+              Condition A image prompt
+              <textarea name="image_style_prompt_a" rows="5" required></textarea>
+            </label>
+
+            <label class="full-span">
+              Condition B image prompt
+              <textarea name="image_style_prompt_b" rows="5" required></textarea>
             </label>
 
             <label>
@@ -105,7 +125,7 @@
     </main>
   </div>
 
-  <script src="./config.js?v=5"></script>
-  <script src="./admin.js?v=5"></script>
+  <script src="./config.js?v=6"></script>
+  <script src="./admin.js?v=6"></script>
 </body>
 </html>

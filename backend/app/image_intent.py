@@ -14,6 +14,7 @@ IMAGE_VERBS = (
 IMAGE_NOUNS = (
     "image",
     "picture",
+    "pic",
     "photo",
     "portrait",
     "illustration",
@@ -52,12 +53,17 @@ FOLLOW_UP_ASSISTANT_HINTS = (
 SELF_IMAGE_PHRASES = (
     "picture of yourself",
     "photo of yourself",
+    "pic of yourself",
     "image of yourself",
     "portrait of yourself",
     "picture of you",
     "photo of you",
+    "pic of you",
     "image of you",
     "portrait of you",
+    "picture of u",
+    "photo of u",
+    "pic of u",
     "what you look like",
     "what do you look like",
     "show yourself",
@@ -125,8 +131,8 @@ def _is_self_image_request(normalized: str) -> bool:
 
     return (
         any(verb in normalized for verb in ("send", "show", "create", "generate", "make"))
-        and any(noun in normalized for noun in ("picture", "photo", "image", "portrait", "selfie"))
-        and "you" in normalized
+        and any(noun in normalized for noun in ("picture", "pic", "photo", "image", "portrait", "selfie"))
+        and any(pronoun in normalized for pronoun in ("you", "u"))
     )
 
 

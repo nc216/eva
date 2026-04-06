@@ -14,6 +14,29 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _normalize_condition(study_condition: Optional[str]) -> Optional[str]:
+    if study_condition is None:
+        return None
+    normalized = study_condition.strip().upper()
+    return normalized or None
+
+
+def _select_system_prompt(bot_config: BotConfig, study_condition: Optional[str]) -> str:
+    if study_condition == "A":
+        return bot_config.system_prompt_a
+    if study_condition == "B":
+        return bot_config.system_prompt_b
+    return bot_config.system_prompt
+
+
+def _select_image_style_prompt(bot_config: BotConfig, study_condition: Optional[str]) -> str:
+    if study_condition == "A":
+        return bot_config.image_style_prompt_a
+    if study_condition == "B":
+        return bot_config.image_style_prompt_b
+    return bot_config.image_style_prompt
+
+
 def _default_config() -> BotConfig:
     return BotConfig()
 
@@ -59,13 +82,23 @@ def create_session(
     study_condition: Optional[str] = None,
 ) -> dict[str, Any]:
     bot_config = load_bot_config()
+    normalized_condition = _normalize_condition(study_condition)
+    config_snapshot = bot_config.model_dump()
+    config_snapshot["system_prompt"] = _select_system_prompt(
+        bot_config,
+        normalized_condition,
+    )
+    config_snapshot["image_style_prompt"] = _select_image_style_prompt(
+        bot_config,
+        normalized_condition,
+    )
     session_id = str(uuid.uuid4())
     session = {
         "session_id": session_id,
         "participant_id": participant_id,
-        "study_condition": study_condition,
+        "study_condition": normalized_condition,
         "bot_name": bot_config.bot_name,
-        "config_snapshot": bot_config.model_dump(),
+        "config_snapshot": config_snapshot,
         "messages": [],
         "created_at": _now_iso(),
     }
@@ -107,6 +140,46 @@ def get_turn_count(session_id: str) -> int:
 def persist_transcript(session: dict[str, Any]) -> None:
     transcript_path = Path(config.TRANSCRIPTS_DIR) / f"{session['session_id']}.json"
     transcript_path.write_text(json.dumps(session, indent=2) + "\n")
+
+
+def list_saved_transcripts() -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for transcript_path in sorted(
+        Path(config.TRANSCRIPTS_DIR).glob("*.json"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    ):
+        try:
+            session = json.loads(transcript_path.read_text())
+        except Exception:
+            continue
+
+        items.append(
+            {
+                "session_id": session.get("session_id", transcript_path.stem),
+                "participant_id": session.get("participant_id"),
+                "study_condition": session.get("study_condition"),
+                "created_at": session.get("created_at"),
+                "message_count": len(session.get("messages", [])),
+                "turn_count": sum(
+                    1
+                    for message in session.get("messages", [])
+                    if message.get("role") == "user"
+                ),
+            }
+        )
+    return items
+
+
+def load_saved_transcript(session_id: str) -> Optional[dict[str, Any]]:
+    transcript_path = Path(config.TRANSCRIPTS_DIR) / f"{session_id}.json"
+    if not transcript_path.exists():
+        return None
+
+    try:
+        return json.loads(transcript_path.read_text())
+    except Exception:
+        return None
 
 
 def save_generated_image(image_bytes: bytes, extension: str = "png") -> str:

@@ -21,8 +21,24 @@ class BotConfig(BaseModel):
     system_prompt: str = (
         "You are Aster, a polished, warm, highly capable conversational agent used in participant-facing studies."
     )
+    system_prompt_a: str = (
+        "You are Aster, a polished, warm, highly capable conversational agent used in participant-facing studies."
+    )
+    system_prompt_b: str = (
+        "You are Aster, a polished, warm, highly capable conversational agent used in participant-facing studies."
+    )
     image_style_prompt: str = (
         "Create a polished, cinematic, visually coherent image with elegant lighting."
+    )
+    image_style_prompt_a: str = (
+        "Create a polished, cinematic, visually coherent image with elegant lighting. "
+        "Localize the image in a plausible spatiotemporal context inferred from the dialogue or, if needed, from a realistic everyday setting. "
+        "Make the scene feel situated in a specific place and time of day, and maintain continuity across turns when prior context exists."
+    )
+    image_style_prompt_b: str = (
+        "Create a polished, cinematic, visually coherent image with elegant lighting. "
+        "Do not localize the image in a specific place or time. "
+        "Keep the image decontextualized, with minimal environmental grounding and no strong spatiotemporal cues unless the user explicitly requires them."
     )
     self_image_prompt: str = (
         "Create a photorealistic portrait of a single approachable adult person looking into the camera. "

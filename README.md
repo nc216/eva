@@ -104,6 +104,22 @@ You can change:
 
 Those settings are persisted in `backend/data/bot-config.json`.
 
+## Transcript access
+
+The backend records session transcripts to `backend/data/transcripts/` and exposes protected admin endpoints:
+
+- `GET /api/admin/transcripts`
+- `GET /api/admin/transcripts/{session_id}`
+
+Both require the `x-admin-token` header set to your `ADMIN_TOKEN`.
+
+Example:
+
+```bash
+curl -H "x-admin-token: YOUR_ADMIN_TOKEN" \
+  https://your-backend.onrender.com/api/admin/transcripts
+```
+
 ## Notes
 
 - Sessions are stored in memory while the server is running.
@@ -112,3 +128,4 @@ Those settings are persisted in `backend/data/bot-config.json`.
 - The admin token is a lightweight control for a lab prototype. For public use, put the admin page behind real authentication.
 - If `OPENAI_API_KEY` is missing or `MOCK_MODE=true`, the app returns mock text responses and a placeholder generated image so you can test the interface locally.
 - `site/config.js` is populated automatically during the GitHub Pages workflow from the repository variable `PAGES_API_BASE_URL`.
+- On free Render, local files are not durable. That means transcript files can be lost when the service restarts, redeploys, or is replaced. For an actual study, you should move transcripts to durable storage before relying on it.

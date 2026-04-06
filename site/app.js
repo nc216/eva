@@ -106,12 +106,13 @@ async function fetchPublicConfig() {
 }
 
 async function startSession() {
+  const studyCondition = queryValue("condition") || queryValue("cond");
   const response = await fetch(`${apiBaseUrl}/api/session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       participant_id: queryValue("participant"),
-      study_condition: queryValue("condition"),
+      study_condition: studyCondition,
     }),
   });
 
