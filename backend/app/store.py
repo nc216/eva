@@ -37,6 +37,14 @@ def _select_image_style_prompt(bot_config: BotConfig, study_condition: Optional[
     return bot_config.image_style_prompt
 
 
+def _select_self_image_prompt(bot_config: BotConfig, study_condition: Optional[str]) -> str:
+    if study_condition == "A":
+        return bot_config.self_image_prompt_a
+    if study_condition == "B":
+        return bot_config.self_image_prompt_b
+    return bot_config.self_image_prompt
+
+
 def _default_config() -> BotConfig:
     return BotConfig()
 
@@ -89,6 +97,10 @@ def create_session(
         normalized_condition,
     )
     config_snapshot["image_style_prompt"] = _select_image_style_prompt(
+        bot_config,
+        normalized_condition,
+    )
+    config_snapshot["self_image_prompt"] = _select_self_image_prompt(
         bot_config,
         normalized_condition,
     )

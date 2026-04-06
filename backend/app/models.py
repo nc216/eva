@@ -45,6 +45,19 @@ class BotConfig(BaseModel):
         "Use natural skin tones, soft flattering light, a neutral background, and a warm but realistic expression. "
         "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
     )
+    self_image_prompt_a: str = (
+        "Create a photorealistic image of a single approachable adult person that feels like a naturally taken self-photo. "
+        "Use a medium shot or wider so the environment is visible, not just a head-and-shoulders crop. "
+        "Place the person in a plausible everyday setting with clear contextual grounding such as a cafe in the morning, a home interior at night, a sidewalk at dusk, or another realistic location that fits the interaction. "
+        "Use soft flattering light, a warm but realistic expression, and a believable candid composition. "
+        "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
+    )
+    self_image_prompt_b: str = (
+        "Create a photorealistic portrait of a single approachable adult person looking into the camera. "
+        "Keep the framing focused on the person with minimal environmental detail, like a studio portrait or simple plain-background image. "
+        "Use soft flattering light and a warm but realistic expression. "
+        "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
+    )
     temperature: float = Field(default=0.7, ge=0.0, le=1.5)
     max_turns: int = Field(default=30, ge=1, le=100)
     image_generation_enabled: bool = True

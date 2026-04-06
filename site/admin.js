@@ -22,6 +22,9 @@ const fieldNames = [
   "image_style_prompt",
   "image_style_prompt_a",
   "image_style_prompt_b",
+  "self_image_prompt",
+  "self_image_prompt_a",
+  "self_image_prompt_b",
   "max_turns",
   "image_generation_enabled",
 ];
@@ -76,6 +79,9 @@ function fillForm(config) {
   field("image_style_prompt").value = config.image_style_prompt;
   field("image_style_prompt_a").value = config.image_style_prompt_a || config.image_style_prompt;
   field("image_style_prompt_b").value = config.image_style_prompt_b || config.image_style_prompt;
+  field("self_image_prompt").value = config.self_image_prompt;
+  field("self_image_prompt_a").value = config.self_image_prompt_a || config.self_image_prompt;
+  field("self_image_prompt_b").value = config.self_image_prompt_b || config.self_image_prompt;
   field("max_turns").value = config.max_turns;
   field("image_generation_enabled").checked = Boolean(config.image_generation_enabled);
 }
@@ -101,6 +107,9 @@ function readForm() {
     image_style_prompt: field("image_style_prompt").value.trim(),
     image_style_prompt_a: field("image_style_prompt_a").value.trim(),
     image_style_prompt_b: field("image_style_prompt_b").value.trim(),
+    self_image_prompt: field("self_image_prompt").value.trim(),
+    self_image_prompt_a: field("self_image_prompt_a").value.trim(),
+    self_image_prompt_b: field("self_image_prompt_b").value.trim(),
     max_turns: Number(field("max_turns").value),
     image_generation_enabled: field("image_generation_enabled").checked,
   };
