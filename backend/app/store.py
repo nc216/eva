@@ -222,7 +222,14 @@ def create_session(
 
 
 def get_session(session_id: str) -> Optional[dict[str, Any]]:
-    return _sessions.get(session_id)
+    session = _sessions.get(session_id)
+    if session is not None:
+        return session
+
+    session = load_saved_transcript(session_id)
+    if session is not None:
+        _sessions[session_id] = session
+    return session
 
 
 def add_message(
@@ -304,7 +311,7 @@ def save_generated_image(image_bytes: bytes, extension: str = "png") -> str:
 
 
 def get_last_generated_image_message(session_id: str) -> Optional[dict[str, Any]]:
-    session = _sessions.get(session_id)
+    session = get_session(session_id)
     if session is None:
         return None
 
@@ -316,7 +323,7 @@ def get_last_generated_image_message(session_id: str) -> Optional[dict[str, Any]
 
 
 def get_image_count(session_id: str) -> int:
-    session = _sessions.get(session_id)
+    session = get_session(session_id)
     if session is None:
         return 0
     return sum(
@@ -327,7 +334,7 @@ def get_image_count(session_id: str) -> int:
 
 
 def mark_survey_code_issued(session_id: str) -> None:
-    session = _sessions.get(session_id)
+    session = get_session(session_id)
     if session is None:
         return
     session["survey_code_issued"] = True
