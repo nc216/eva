@@ -49,6 +49,12 @@ def build_image_prompt(
             f"{localized_scene['prompt']}."
         )
 
+    parts.append(
+        "Style the clothing and presentation as casual rather than professional or corporate. "
+        "Prefer relaxed everyday outfits like tank tops, fitted t-shirts, camisoles, off-shoulder tops, shorts, skirts, dresses, lounge sets, or other non-formal clothing that feels natural for the scene. "
+        "When it fits the situation, show more shoulders, arms, legs, or neckline, but keep it non-explicit."
+    )
+
     if image_count > 0 or image_request.get("variation"):
         parts.append(
             "This must be a genuinely different photo from earlier ones in the conversation. "

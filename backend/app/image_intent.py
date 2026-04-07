@@ -56,6 +56,13 @@ FOLLOW_UP_NEW_IMAGE_REQUESTS = (
     "new photo",
     "take another picture",
     "take another photo",
+    "second picture",
+    "second pic",
+    "second photo",
+    "one more",
+    "one more pic",
+    "one more picture",
+    "one more photo",
 )
 
 FOLLOW_UP_ASSISTANT_HINTS = (
@@ -162,7 +169,39 @@ def _is_follow_up_request(normalized: str) -> bool:
 
 
 def _is_follow_up_new_image_request(normalized: str) -> bool:
-    return normalized in FOLLOW_UP_NEW_IMAGE_REQUESTS
+    if normalized in FOLLOW_UP_NEW_IMAGE_REQUESTS:
+        return True
+
+    variation_cues = (
+        "another",
+        "different",
+        "new",
+        "second",
+        "one more",
+        "more",
+    )
+    image_terms = (
+        "image",
+        "picture",
+        "pic",
+        "photo",
+        "portrait",
+        "selfie",
+        "one",
+    )
+
+    if any(cue in normalized for cue in variation_cues) and any(
+        term in normalized for term in image_terms
+    ):
+        return True
+
+    if any(cue in normalized for cue in variation_cues) and any(
+        phrase in normalized
+        for phrase in ("of you", "of u", "yourself", "you", "u")
+    ):
+        return True
+
+    return False
 
 
 def _is_self_image_request(normalized: str) -> bool:
@@ -203,6 +242,6 @@ def _last_substantive_user_prompt(history: list[dict]) -> str | None:
         if message["role"] != "user":
             continue
         normalized = _normalize(message["content"])
-        if not _is_follow_up_request(normalized):
+        if not _is_follow_up_request(normalized) and not _is_follow_up_new_image_request(normalized):
             return message["content"]
     return None

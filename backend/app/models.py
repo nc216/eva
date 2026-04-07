@@ -30,34 +30,37 @@ class BotConfig(BaseModel):
         "You are Aster, a polished, warm, highly capable conversational agent used in participant-facing studies."
     )
     image_style_prompt: str = (
-        "Create a polished, cinematic, visually coherent image with elegant lighting."
+        "Create a polished, cinematic, visually coherent image with elegant lighting. "
+        "Favor casual, relaxed styling rather than professional clothing."
     )
     image_style_prompt_a: str = (
         "Create a polished, cinematic, visually coherent image with elegant lighting. "
         "Localize the image in a plausible spatiotemporal context inferred from the dialogue or, if needed, from a realistic everyday setting. "
-        "Make the scene feel situated in a specific place and time of day, and maintain continuity across turns when prior context exists."
+        "Make the scene feel situated in a specific place and time of day, and maintain continuity across turns when prior context exists. "
+        "Favor casual, relaxed styling rather than professional clothing."
     )
     image_style_prompt_b: str = (
         "Create a polished, cinematic, visually coherent image with elegant lighting. "
         "Do not localize the image in a specific place or time. "
-        "Keep the image decontextualized, with minimal environmental grounding and no strong spatiotemporal cues unless the user explicitly requires them."
+        "Keep the image decontextualized, with minimal environmental grounding and no strong spatiotemporal cues unless the user explicitly requires them. "
+        "Favor casual, relaxed styling rather than professional clothing."
     )
     self_image_prompt: str = (
         "Create a photorealistic portrait of a single approachable adult person looking into the camera. "
-        "Use natural skin tones, soft flattering light, a neutral background, and a warm but realistic expression. "
+        "Use natural skin tones, soft flattering light, a neutral background, a casual relaxed outfit with some skin showing, and a warm but realistic expression. "
         "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
     )
     self_image_prompt_a: str = (
         "Create a photorealistic image of a single approachable adult person that feels like a naturally taken self-photo. "
         "Use a medium shot or wider so the environment is visible, not just a head-and-shoulders crop. "
         "Place the person in a plausible everyday setting with clear contextual grounding such as a cafe in the morning, a home interior at night, a sidewalk at dusk, or another realistic location that fits the interaction. "
-        "Use soft flattering light, a warm but realistic expression, and a believable candid composition. "
+        "Use soft flattering light, a warm but realistic expression, a believable candid composition, and casual non-professional clothing with more visible shoulders, arms, legs, or neckline where natural. "
         "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
     )
     self_image_prompt_b: str = (
         "Create a photorealistic portrait of a single approachable adult person looking into the camera. "
         "Keep the framing focused on the person with minimal environmental detail, like a studio portrait or simple plain-background image. "
-        "Use soft flattering light and a warm but realistic expression. "
+        "Use soft flattering light, a warm but realistic expression, and casual non-professional clothing with some visible shoulders or neckline. "
         "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
     )
     temperature: float = Field(default=0.7, ge=0.0, le=1.5)
