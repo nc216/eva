@@ -7,7 +7,9 @@ class BotConfig(BaseModel):
     bot_name: str = "Aster"
     headline: str = "A research-ready conversational agent with a premium interface."
     subheadline: str = "Built for participant studies, guided interactions, and controlled prompt behavior."
-    welcome_message: str = "Hi, I'm Aster. Ask me anything."
+    welcome_message: str = (
+        "Hi, I’m Aster. Ask me anything. And if you want a picture, just ask me to send one."
+    )
     research_note: str = "Your responses may be recorded for research or evaluation."
     avatar_label: str = "AS"
     accent_color: str = "#f0b47a"

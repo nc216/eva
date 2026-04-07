@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,9 +16,75 @@ from app.models import (
 )
 
 
+SURVEY_CODE_DELAY_SECONDS = 5 * 60
+
+
 def require_admin_token(x_admin_token: str | None) -> None:
     if not config.ADMIN_TOKEN or x_admin_token != config.ADMIN_TOKEN:
         raise HTTPException(status_code=401, detail="Invalid admin token")
+
+
+def build_image_prompt(
+    session: dict,
+    snapshot: dict,
+    image_request: dict,
+) -> str:
+    visual_identity = session.get("visual_identity")
+    localized_scene = session.get("localized_scene")
+    image_count = store.get_image_count(session["session_id"])
+
+    if image_request.get("preset") == "self_portrait":
+        base_prompt = snapshot["self_image_prompt"]
+    else:
+        base_prompt = image_request["prompt"]
+
+    parts = [base_prompt]
+
+    if visual_identity:
+        parts.append(f"Keep the same person identity in every image: {visual_identity}.")
+
+    if localized_scene:
+        parts.append(
+            "Keep the image grounded in this same setting unless the user clearly asks to change it: "
+            f"{localized_scene['prompt']}."
+        )
+
+    if image_count > 0 or image_request.get("variation"):
+        parts.append(
+            "This must be a genuinely different photo from earlier ones in the conversation. "
+            "Keep the same identity, but change the framing, camera angle, pose, expression, action, or distance so it does not look like a duplicate."
+        )
+
+    return "\n\n".join(parts)
+
+
+def build_image_reply(image_request: dict, image_count: int) -> str:
+    is_self_portrait = image_request.get("preset") == "self_portrait"
+    if is_self_portrait:
+        if image_count > 0 or image_request.get("variation"):
+            return "I took another picture for you."
+        return "I took a picture for you."
+    if image_count > 0 or image_request.get("variation"):
+        return "I made another image for you."
+    return "I made an image for you."
+
+
+def maybe_append_survey_code(reply: str, session: dict) -> str:
+    if session.get("survey_code_issued"):
+        return reply
+
+    created_at = datetime.fromisoformat(session["created_at"])
+    elapsed_seconds = (datetime.now(timezone.utc) - created_at).total_seconds()
+    if elapsed_seconds < SURVEY_CODE_DELAY_SECONDS:
+        return reply
+
+    store.mark_survey_code_issued(session["session_id"])
+    survey_code = session["survey_code"]
+    return (
+        f"{reply}\n\nYour survey code is {survey_code}. "
+        "Copy and paste that code into the Qualtrics survey. "
+        "If you want, you can return to the survey now or keep chatting with me longer."
+    )
 
 
 @asynccontextmanager
@@ -119,12 +186,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
                     image_url=image_url,
                 )
 
-        is_self_portrait = image_request.get("preset") == "self_portrait"
-        image_prompt = (
-            snapshot["self_image_prompt"]
-            if is_self_portrait
-            else image_request["prompt"]
-        )
+        image_prompt = build_image_prompt(session, snapshot, image_request)
         image_bytes = await openai_client.generate_image_bytes(
             user_message=image_prompt,
             image_style_prompt=snapshot["image_style_prompt"],
@@ -132,10 +194,10 @@ async def chat(req: ChatRequest) -> ChatResponse:
         image_extension = "svg" if config.MOCK_MODE or not config.OPENAI_API_KEY else "png"
         image_name = store.save_generated_image(image_bytes, extension=image_extension)
         image_url = f"/generated-images/{image_name}"
-        reply = (
-            "Here is a picture of me."
-            if is_self_portrait
-            else "I created an image based on your request. It should appear below. If you want changes, tell me what to adjust."
+        image_count = store.get_image_count(req.session_id)
+        reply = maybe_append_survey_code(
+            build_image_reply(image_request, image_count),
+            session,
         )
         store.add_message(
             req.session_id,
@@ -162,6 +224,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
         user_message=user_message,
         temperature=snapshot["temperature"],
     )
+    reply = maybe_append_survey_code(reply, session)
     store.add_message(req.session_id, "assistant", reply, metadata={"kind": "text"})
     return ChatResponse(
         session_id=req.session_id,

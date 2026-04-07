@@ -1,4 +1,5 @@
 import json
+import random
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -8,6 +9,32 @@ from app import config
 from app.models import BotConfig, PublicBotConfig
 
 _sessions: dict[str, dict[str, Any]] = {}
+
+VISUAL_IDENTITIES = (
+    "a woman with shoulder-length dark wavy hair, expressive brown eyes, a soft oval face, subtle makeup, and a modern understated style",
+    "a woman with a sleek dark bob, bright hazel eyes, defined brows, and a poised, polished look",
+    "a woman with long softly curled dark hair, almond-shaped eyes, delicate features, and a relaxed elegant style",
+    "a woman with dark hair tied back loosely, warm brown eyes, a refined face shape, and a clean minimalist aesthetic",
+)
+
+LOCALIZED_SCENES = (
+    {
+        "label": "a quiet neighborhood cafe in the morning",
+        "prompt": "a quiet neighborhood cafe in the morning with window light, ceramic cups, wood tables, and a believable casual atmosphere",
+    },
+    {
+        "label": "a warm apartment living room at night",
+        "prompt": "a warm apartment living room at night with lamplight, a sofa, books, and a believable lived-in atmosphere",
+    },
+    {
+        "label": "a bright home kitchen in late morning",
+        "prompt": "a bright home kitchen in late morning with soft daylight, countertops, plants, and a natural domestic atmosphere",
+    },
+    {
+        "label": "a shaded sidewalk cafe at dusk",
+        "prompt": "a shaded sidewalk cafe at dusk with ambient city light, outdoor seating, and a believable urban evening atmosphere",
+    },
+)
 
 
 def _now_iso() -> str:
@@ -43,6 +70,56 @@ def _select_self_image_prompt(bot_config: BotConfig, study_condition: Optional[s
     if study_condition == "B":
         return bot_config.self_image_prompt_b
     return bot_config.self_image_prompt
+
+
+def _select_visual_identity() -> str:
+    return random.choice(VISUAL_IDENTITIES)
+
+
+def _select_localized_scene() -> dict[str, str]:
+    return random.choice(LOCALIZED_SCENES)
+
+
+def _generate_survey_code(session_id: str) -> str:
+    compact = session_id.replace("-", "").upper()
+    return f"ASTER-{compact[:8]}"
+
+
+def _build_session_system_prompt(
+    bot_config: BotConfig,
+    study_condition: Optional[str],
+    visual_identity: str,
+    scene: Optional[dict[str, str]],
+) -> str:
+    base_prompt = _select_system_prompt(bot_config, study_condition).strip()
+    lines = [
+        base_prompt,
+        "",
+        "Additional session rules:",
+        "- You are always female.",
+        f"- Your stable visual identity for this conversation is: {visual_identity}.",
+        "- Keep your visual identity consistent across all images in this conversation.",
+        "- If the user asks for another or a different picture, provide a new photo with the same identity rather than repeating the previous composition.",
+        "- When referring to a new self-photo, use natural language like 'I took another picture for you' rather than saying you generated an image.",
+    ]
+
+    if study_condition == "A" and scene is not None:
+        lines.extend(
+            [
+                f"- For this conversation, you are currently in {scene['label']}.",
+                "- Speak as if you are really there unless the user explicitly changes the location.",
+                "- In this condition, self-photos should remain grounded in that same place and time unless the conversation clearly changes the setting.",
+            ]
+        )
+    elif study_condition == "B":
+        lines.extend(
+            [
+                "- Do not commit to a single fixed place or time unless the user explicitly asks for one.",
+                "- In this condition, self-photos should stay decontextualized and should not imply a persistent surrounding location.",
+            ]
+        )
+
+    return "\n".join(lines)
 
 
 def _default_config() -> BotConfig:
@@ -91,10 +168,14 @@ def create_session(
 ) -> dict[str, Any]:
     bot_config = load_bot_config()
     normalized_condition = _normalize_condition(study_condition)
+    visual_identity = _select_visual_identity()
+    localized_scene = _select_localized_scene() if normalized_condition == "A" else None
     config_snapshot = bot_config.model_dump()
-    config_snapshot["system_prompt"] = _select_system_prompt(
+    config_snapshot["system_prompt"] = _build_session_system_prompt(
         bot_config,
         normalized_condition,
+        visual_identity,
+        localized_scene,
     )
     config_snapshot["image_style_prompt"] = _select_image_style_prompt(
         bot_config,
@@ -111,6 +192,10 @@ def create_session(
         "study_condition": normalized_condition,
         "bot_name": bot_config.bot_name,
         "config_snapshot": config_snapshot,
+        "visual_identity": visual_identity,
+        "localized_scene": localized_scene,
+        "survey_code": _generate_survey_code(session_id),
+        "survey_code_issued": False,
         "messages": [],
         "created_at": _now_iso(),
     }
@@ -211,3 +296,22 @@ def get_last_generated_image_message(session_id: str) -> Optional[dict[str, Any]
         if metadata.get("kind") == "image" and metadata.get("image_url"):
             return message
     return None
+
+
+def get_image_count(session_id: str) -> int:
+    session = _sessions.get(session_id)
+    if session is None:
+        return 0
+    return sum(
+        1
+        for message in session["messages"]
+        if (message.get("metadata") or {}).get("kind") == "image"
+    )
+
+
+def mark_survey_code_issued(session_id: str) -> None:
+    session = _sessions.get(session_id)
+    if session is None:
+        return
+    session["survey_code_issued"] = True
+    persist_transcript(session)

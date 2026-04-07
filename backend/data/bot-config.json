@@ -2,7 +2,7 @@
   "bot_name": "Aster",
   "headline": "A research-ready conversational agent with a premium interface.",
   "subheadline": "Built for participant studies, guided interactions, and controlled prompt behavior.",
-  "welcome_message": "Hi, I’m Aster. Ask me anything, and if you want a visual, ask me to generate an image.",
+  "welcome_message": "Hi, I’m Aster. Ask me anything. And if you want a picture, just ask me to send one.",
   "research_note": "Your responses may be recorded for research or evaluation.",
   "avatar_label": "AS",
   "accent_color": "#f0b47a",

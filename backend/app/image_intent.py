@@ -41,6 +41,23 @@ FOLLOW_UP_REQUESTS = (
     "show me",
 )
 
+FOLLOW_UP_NEW_IMAGE_REQUESTS = (
+    "another one",
+    "another pic",
+    "another picture",
+    "another photo",
+    "different one",
+    "different pic",
+    "different picture",
+    "different photo",
+    "new one",
+    "new pic",
+    "new picture",
+    "new photo",
+    "take another picture",
+    "take another photo",
+)
+
 FOLLOW_UP_ASSISTANT_HINTS = (
     "would you like me to send it",
     "the image should appear",
@@ -96,6 +113,25 @@ def resolve_image_request(
         if last_prompt and _assistant_was_talking_about_image(last_assistant):
             return {"action": "generate", "prompt": last_prompt}
 
+    if _is_follow_up_new_image_request(normalized):
+        last_generated = _last_generated_image(history)
+        if last_generated is not None:
+            metadata = last_generated.get("metadata") or {}
+            if metadata.get("preset") == "self_portrait":
+                return {"action": "generate", "preset": "self_portrait", "variation": True}
+            if metadata.get("image_prompt"):
+                return {
+                    "action": "generate",
+                    "prompt": metadata["image_prompt"],
+                    "variation": True,
+                }
+
+        last_prompt = _last_substantive_user_prompt(history)
+        if last_prompt:
+            if _is_self_image_request(_normalize(last_prompt)):
+                return {"action": "generate", "preset": "self_portrait", "variation": True}
+            return {"action": "generate", "prompt": last_prompt, "variation": True}
+
     return None
 
 
@@ -123,6 +159,10 @@ def _is_direct_image_request(normalized: str) -> bool:
 
 def _is_follow_up_request(normalized: str) -> bool:
     return normalized in FOLLOW_UP_REQUESTS
+
+
+def _is_follow_up_new_image_request(normalized: str) -> bool:
+    return normalized in FOLLOW_UP_NEW_IMAGE_REQUESTS
 
 
 def _is_self_image_request(normalized: str) -> bool:
