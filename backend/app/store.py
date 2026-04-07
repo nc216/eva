@@ -36,6 +36,13 @@ LOCALIZED_SCENES = (
     },
 )
 
+SIGNATURE_OUTFITS = (
+    "a fitted off-shoulder knit top with a dark denim mini skirt and simple jewelry",
+    "a soft camisole with an open lightweight cardigan and relaxed high-waisted shorts",
+    "a sleeveless fitted top with a casual skirt and understated everyday jewelry",
+    "a relaxed scoop-neck top with high-waisted shorts and a light casual layer",
+)
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -80,6 +87,10 @@ def _select_localized_scene() -> dict[str, str]:
     return random.choice(LOCALIZED_SCENES)
 
 
+def _select_signature_outfit() -> str:
+    return random.choice(SIGNATURE_OUTFITS)
+
+
 def _generate_survey_code(session_id: str) -> str:
     compact = session_id.replace("-", "").upper()
     return f"ASTER-{compact[:8]}"
@@ -90,6 +101,7 @@ def _build_session_system_prompt(
     study_condition: Optional[str],
     visual_identity: str,
     scene: Optional[dict[str, str]],
+    signature_outfit: str,
 ) -> str:
     base_prompt = _select_system_prompt(bot_config, study_condition).strip()
     lines = [
@@ -99,6 +111,8 @@ def _build_session_system_prompt(
         "- You are always female.",
         f"- Your stable visual identity for this conversation is: {visual_identity}.",
         "- Keep your visual identity consistent across all images in this conversation.",
+        f"- Your signature outfit for this conversation is: {signature_outfit}.",
+        "- Keep that same outfit in self-photos unless the user explicitly asks you to change clothes.",
         "- If the user asks for another or a different picture, provide a new photo with the same identity rather than repeating the previous composition.",
         "- When referring to a new self-photo, use natural language like 'I took another picture for you' rather than saying you generated an image.",
     ]
@@ -170,12 +184,14 @@ def create_session(
     normalized_condition = _normalize_condition(study_condition)
     visual_identity = _select_visual_identity()
     localized_scene = _select_localized_scene() if normalized_condition == "A" else None
+    signature_outfit = _select_signature_outfit()
     config_snapshot = bot_config.model_dump()
     config_snapshot["system_prompt"] = _build_session_system_prompt(
         bot_config,
         normalized_condition,
         visual_identity,
         localized_scene,
+        signature_outfit,
     )
     config_snapshot["image_style_prompt"] = _select_image_style_prompt(
         bot_config,
@@ -194,6 +210,7 @@ def create_session(
         "config_snapshot": config_snapshot,
         "visual_identity": visual_identity,
         "localized_scene": localized_scene,
+        "signature_outfit": signature_outfit,
         "survey_code": _generate_survey_code(session_id),
         "survey_code_issued": False,
         "messages": [],

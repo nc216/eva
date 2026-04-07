@@ -4,4 +4,4 @@
 __pycache__/
 *.pyc
 backend/data/transcripts/*.json
-
+backend/backend/

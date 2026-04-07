@@ -33,6 +33,7 @@ def build_image_prompt(
 ) -> str:
     visual_identity = session.get("visual_identity")
     localized_scene = session.get("localized_scene")
+    signature_outfit = session.get("signature_outfit")
     image_count = store.get_image_count(session["session_id"])
 
     if image_request.get("preset") == "self_portrait":
@@ -51,6 +52,12 @@ def build_image_prompt(
             f"{localized_scene['prompt']}."
         )
 
+    if signature_outfit and image_request.get("preset") == "self_portrait":
+        parts.append(
+            "Keep the same outfit across self-photos in this conversation unless the user explicitly asks to change clothes: "
+            f"{signature_outfit}."
+        )
+
     parts.append(
         "Style the clothing and presentation as casual rather than professional or corporate. "
         "Prefer relaxed everyday outfits like tank tops, fitted t-shirts, camisoles, off-shoulder tops, shorts, skirts, soft dresses, lounge sets, or other non-formal clothing that feels natural for the scene. "
@@ -61,7 +68,7 @@ def build_image_prompt(
     if image_count > 0 or image_request.get("variation"):
         parts.append(
             "This must be a genuinely different photo from earlier ones in the conversation. "
-            "Keep the same identity, but change the framing, camera angle, pose, expression, action, or distance so it does not look like a duplicate."
+            "Keep the same identity and the same outfit, but change the framing, camera angle, pose, expression, action, or distance so it does not look like a duplicate."
         )
 
     return "\n\n".join(parts)

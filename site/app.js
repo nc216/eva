@@ -146,7 +146,7 @@ function applyTheme(config) {
   document.documentElement.style.setProperty("--accent", config.accent_color);
   botNameEl.textContent = config.bot_name;
   avatarLabelEl.textContent = config.avatar_label;
-  welcomeCopyEl.textContent = config.welcome_message;
+  welcomeCopyEl.textContent = "Ask anything, or ask for a picture.";
 }
 
 async function fetchPublicConfig() {

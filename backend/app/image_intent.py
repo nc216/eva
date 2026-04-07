@@ -28,8 +28,13 @@ IMAGE_NOUNS = (
 
 FOLLOW_UP_REQUESTS = (
     "yes",
+    "ya",
     "yeah",
     "yep",
+    "yup",
+    "sure",
+    "ok",
+    "okay",
     "send it",
     "show it",
     "where is it",
@@ -42,10 +47,14 @@ FOLLOW_UP_REQUESTS = (
 )
 
 FOLLOW_UP_NEW_IMAGE_REQUESTS = (
+    "another",
     "another one",
+    "another please",
     "another pic",
     "another picture",
     "another photo",
+    "again",
+    "again please",
     "different one",
     "different pic",
     "different picture",
@@ -60,9 +69,12 @@ FOLLOW_UP_NEW_IMAGE_REQUESTS = (
     "second pic",
     "second photo",
     "one more",
+    "one more please",
     "one more pic",
     "one more picture",
     "one more photo",
+    "more",
+    "more please",
 )
 
 FOLLOW_UP_ASSISTANT_HINTS = (
@@ -108,6 +120,17 @@ def resolve_image_request(
     normalized = _normalize(message)
     last_generated = _last_generated_image(history)
 
+    if last_generated is not None and _is_short_variation_follow_up(normalized):
+        metadata = last_generated.get("metadata") or {}
+        if metadata.get("preset") == "self_portrait":
+            return {"action": "generate", "preset": "self_portrait", "variation": True}
+        if metadata.get("image_prompt"):
+            return {
+                "action": "generate",
+                "prompt": metadata["image_prompt"],
+                "variation": True,
+            }
+
     if _is_follow_up_new_image_request(normalized):
         if last_generated is not None:
             metadata = last_generated.get("metadata") or {}
@@ -142,11 +165,23 @@ def resolve_image_request(
         return {"action": "generate", "prompt": message.strip()}
 
     if _is_follow_up_request(normalized):
+        last_assistant = _last_assistant_text(history)
+        if _assistant_offered_new_image(last_assistant):
+            if last_generated is not None:
+                metadata = last_generated.get("metadata") or {}
+                if metadata.get("preset") == "self_portrait":
+                    return {"action": "generate", "preset": "self_portrait", "variation": True}
+                if metadata.get("image_prompt"):
+                    return {
+                        "action": "generate",
+                        "prompt": metadata["image_prompt"],
+                        "variation": True,
+                    }
+
         if last_generated is not None:
             return {"action": "resend"}
 
         last_prompt = _last_substantive_user_prompt(history)
-        last_assistant = _last_assistant_text(history)
         if last_prompt and _assistant_was_talking_about_image(last_assistant):
             return {"action": "generate", "prompt": last_prompt}
 
@@ -231,11 +266,53 @@ def _looks_like_variation_request(normalized: str) -> bool:
     return False
 
 
+def _is_short_variation_follow_up(normalized: str) -> bool:
+    return normalized in {
+        "another",
+        "another please",
+        "again",
+        "again please",
+        "different",
+        "new",
+        "one more",
+        "one more please",
+        "more",
+        "more please",
+    }
+
+
 def _assistant_was_talking_about_image(text: str | None) -> bool:
     if not text:
         return False
     normalized = _normalize(text)
     return any(hint in normalized for hint in FOLLOW_UP_ASSISTANT_HINTS)
+
+
+def _assistant_offered_new_image(text: str | None) -> bool:
+    if not text:
+        return False
+
+    normalized = _normalize(text)
+    return any(
+        phrase in normalized
+        for phrase in (
+            "another pic",
+            "another picture",
+            "another photo",
+            "another image",
+            "another one",
+            "different pic",
+            "different picture",
+            "different photo",
+            "different image",
+            "different one",
+            "new pic",
+            "new picture",
+            "new photo",
+            "new image",
+            "new one",
+        )
+    )
 
 
 def _last_assistant_text(history: list[dict]) -> str | None:
