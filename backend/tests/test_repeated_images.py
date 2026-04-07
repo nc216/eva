@@ -100,6 +100,8 @@ class RepeatedImageTests(unittest.TestCase):
         self.assertIn("Apply this requested change", prompt)
         self.assertIn("stand up this time", prompt)
         self.assertIn("Color lock:", prompt)
+        self.assertIn("Wardrobe lock is mandatory", prompt)
+        self.assertIn("Do not improvise a new top", prompt)
 
     def test_repeat_photo_reply_uses_human_language(self) -> None:
         self.assertEqual(
@@ -110,6 +112,14 @@ class RepeatedImageTests(unittest.TestCase):
             build_image_reply({}, 0),
             "I took a picture for you.",
         )
+
+    def test_legacy_signature_outfit_strings_are_upgraded_to_color_locked_dicts(self) -> None:
+        upgraded = store.normalize_signature_outfit(
+            "a sleeveless fitted top with a casual skirt and understated everyday jewelry"
+        )
+        self.assertEqual(upgraded["top_color"], "olive")
+        self.assertEqual(upgraded["bottom_color"], "black")
+        self.assertEqual(upgraded["accessory_color"], "silver")
 
 
 if __name__ == "__main__":

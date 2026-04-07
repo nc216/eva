@@ -67,6 +67,37 @@ SIGNATURE_OUTFITS = (
     },
 )
 
+LEGACY_SIGNATURE_OUTFIT_MAP = {
+    "a fitted off-shoulder knit top with a dark denim mini skirt and simple jewelry": {
+        "prompt": "a fitted cream off-shoulder knit top with a dark blue denim mini skirt and simple gold jewelry",
+        "top_color": "cream",
+        "bottom_color": "dark blue denim",
+        "layer_color": None,
+        "accessory_color": "gold",
+    },
+    "a soft camisole with an open lightweight cardigan and relaxed high-waisted shorts": {
+        "prompt": "a soft black camisole with an open light beige cardigan and relaxed light-wash high-waisted shorts",
+        "top_color": "black",
+        "bottom_color": "light-wash blue denim",
+        "layer_color": "light beige",
+        "accessory_color": None,
+    },
+    "a sleeveless fitted top with a casual skirt and understated everyday jewelry": {
+        "prompt": "a sleeveless olive fitted top with a black casual skirt and understated silver everyday jewelry",
+        "top_color": "olive",
+        "bottom_color": "black",
+        "layer_color": None,
+        "accessory_color": "silver",
+    },
+    "a relaxed scoop-neck top with high-waisted shorts and a light casual layer": {
+        "prompt": "a relaxed white scoop-neck top with tan high-waisted shorts and a light heather-gray casual layer",
+        "top_color": "white",
+        "bottom_color": "tan",
+        "layer_color": "light heather-gray",
+        "accessory_color": None,
+    },
+}
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -127,6 +158,9 @@ def normalize_signature_outfit(signature_outfit: Any) -> dict[str, str | None] |
             "accessory_color": signature_outfit.get("accessory_color"),
         }
     if isinstance(signature_outfit, str):
+        legacy_match = LEGACY_SIGNATURE_OUTFIT_MAP.get(signature_outfit)
+        if legacy_match is not None:
+            return dict(legacy_match)
         return {
             "prompt": signature_outfit,
             "top_color": None,

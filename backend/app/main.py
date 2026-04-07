@@ -75,27 +75,36 @@ def build_image_prompt(
             "Use the same exact outfit across self-photos in this conversation unless the user explicitly asks to change clothes. "
             "Keep the same garment types, colors, styling, layering, and accessories rather than swapping to a different outfit: "
             "Do not recolor the shirt, skirt, shorts, cardigan, jacket, dress, or jewelry between images. "
+            "Wardrobe lock is mandatory and overrides any general styling preference. "
             f"{signature_outfit['prompt']}. "
-            f"Color lock: {'; '.join(color_parts)}."
+            f"Color lock: {'; '.join(part for part in color_parts if 'None' not in part)}."
         )
 
     if image_request.get("requested_change"):
         parts.append(
-            "Apply this requested change in the new image while preserving the same identity, outfit, and overall condition constraints: "
+            "Apply this requested change in the new image while preserving the same identity, the same exact outfit, the same exact clothing colors, and the overall condition constraints: "
             f"{image_request['requested_change']}."
         )
 
-    parts.append(
-        "Style the clothing and presentation as casual rather than professional or corporate. "
-        "Prefer relaxed everyday outfits like tank tops, fitted t-shirts, camisoles, off-shoulder tops, shorts, skirts, soft dresses, lounge sets, or other non-formal clothing that feels natural for the scene. "
-        "Make the subject look flattering, attractive, confident, and naturally photogenic. "
-        "When it fits the situation, show more shoulders, arms, legs, or neckline, but keep it non-explicit."
-    )
+    if signature_outfit and image_request.get("preset") == "self_portrait":
+        parts.append(
+            "Keep the locked outfit exactly as specified. "
+            "Do not improvise a new top, bottom, color palette, layer, or accessory. "
+            "Make the subject look flattering, attractive, confident, and naturally photogenic without changing the wardrobe."
+        )
+    else:
+        parts.append(
+            "Style the clothing and presentation as casual rather than professional or corporate. "
+            "Prefer relaxed everyday outfits like tank tops, fitted t-shirts, camisoles, off-shoulder tops, shorts, skirts, soft dresses, lounge sets, or other non-formal clothing that feels natural for the scene. "
+            "Make the subject look flattering, attractive, confident, and naturally photogenic. "
+            "When it fits the situation, show more shoulders, arms, legs, or neckline, but keep it non-explicit."
+        )
 
     if image_count > 0 or image_request.get("variation"):
         parts.append(
             "This must be a genuinely different photo from earlier ones in the conversation. "
-            "Keep the same identity and the same exact outfit with the same exact clothing colors, but change the framing, camera angle, pose, expression, action, or distance so it does not look like a duplicate."
+            "Keep the same identity and the same exact outfit with the same exact clothing colors. "
+            "Only change the framing, camera angle, pose, expression, action, or distance so it does not look like a duplicate."
         )
 
     return "\n\n".join(parts)
