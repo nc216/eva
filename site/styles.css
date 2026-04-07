@@ -116,6 +116,14 @@ body::before {
   min-height: 42rem;
 }
 
+.hero-note {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  max-width: 34rem;
+}
+
 .hero-topline,
 .chat-topbar,
 .admin-actions,

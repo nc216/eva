@@ -120,6 +120,17 @@ def resolve_image_request(
     normalized = _normalize(message)
     last_generated = _last_generated_image(history)
 
+    if last_generated is not None and _looks_like_contextual_repeat_request(normalized):
+        metadata = last_generated.get("metadata") or {}
+        if metadata.get("preset") == "self_portrait":
+            return {"action": "generate", "preset": "self_portrait", "variation": True}
+        if metadata.get("image_prompt"):
+            return {
+                "action": "generate",
+                "prompt": metadata["image_prompt"],
+                "variation": True,
+            }
+
     if last_generated is not None and _is_short_variation_follow_up(normalized):
         metadata = last_generated.get("metadata") or {}
         if metadata.get("preset") == "self_portrait":
@@ -279,6 +290,15 @@ def _is_short_variation_follow_up(normalized: str) -> bool:
         "more",
         "more please",
     }
+
+
+def _looks_like_contextual_repeat_request(normalized: str) -> bool:
+    variation_cues = ("another", "different", "new", "one more", "more")
+    delivery_verbs = ("send", "show", "take", "make", "create", "generate", "give")
+
+    return any(cue in normalized for cue in variation_cues) and any(
+        verb in normalized for verb in delivery_verbs
+    )
 
 
 def _assistant_was_talking_about_image(text: str | None) -> bool:

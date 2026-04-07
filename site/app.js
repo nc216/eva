@@ -8,7 +8,6 @@ const chatTitle = document.getElementById("chat-title");
 const turnStatus = document.getElementById("turn-status");
 const botNameEl = document.getElementById("bot-name");
 const avatarLabelEl = document.getElementById("avatar-label");
-const welcomeCopyEl = document.getElementById("welcome-copy");
 
 let sessionId = null;
 let turnCount = 0;
@@ -146,7 +145,6 @@ function applyTheme(config) {
   document.documentElement.style.setProperty("--accent", config.accent_color);
   botNameEl.textContent = config.bot_name;
   avatarLabelEl.textContent = config.avatar_label;
-  welcomeCopyEl.textContent = "Ask anything, or ask for a picture.";
 }
 
 async function fetchPublicConfig() {
