@@ -11,10 +11,10 @@ from app.models import BotConfig, PublicBotConfig
 _sessions: dict[str, dict[str, Any]] = {}
 
 VISUAL_IDENTITIES = (
-    "a woman with shoulder-length dark wavy hair, expressive brown eyes, a soft oval face, subtle makeup, and a modern understated style",
-    "a woman with a sleek dark bob, bright hazel eyes, defined brows, and a poised, polished look",
-    "a woman with long softly curled dark hair, almond-shaped eyes, delicate features, and a relaxed elegant style",
-    "a woman with dark hair tied back loosely, warm brown eyes, a refined face shape, and a clean minimalist aesthetic",
+    "a woman with shoulder-length dark wavy hair, expressive brown eyes, a softly defined face, subtle makeup, and a stylish casual look",
+    "a woman with a sleek dark bob, bright hazel eyes, defined brows, soft glam makeup, and a chic relaxed style",
+    "a woman with long softly curled dark hair, almond-shaped eyes, delicate features, subtle makeup, and an effortlessly attractive casual style",
+    "a woman with dark hair tied back loosely, warm brown eyes, a refined face shape, subtle makeup, and a clean modern off-duty aesthetic",
 )
 
 LOCALIZED_SCENES = (

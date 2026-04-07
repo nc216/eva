@@ -12,6 +12,8 @@ from app.models import (
     ChatResponse,
     StartSessionRequest,
     StartSessionResponse,
+    SurveyCodeRequest,
+    SurveyCodeResponse,
     TranscriptResponse,
 )
 
@@ -51,7 +53,8 @@ def build_image_prompt(
 
     parts.append(
         "Style the clothing and presentation as casual rather than professional or corporate. "
-        "Prefer relaxed everyday outfits like tank tops, fitted t-shirts, camisoles, off-shoulder tops, shorts, skirts, dresses, lounge sets, or other non-formal clothing that feels natural for the scene. "
+        "Prefer relaxed everyday outfits like tank tops, fitted t-shirts, camisoles, off-shoulder tops, shorts, skirts, soft dresses, lounge sets, or other non-formal clothing that feels natural for the scene. "
+        "Make the subject look flattering, attractive, confident, and naturally photogenic. "
         "When it fits the situation, show more shoulders, arms, legs, or neckline, but keep it non-explicit."
     )
 
@@ -90,6 +93,15 @@ def maybe_append_survey_code(reply: str, session: dict) -> str:
         f"{reply}\n\nYour survey code is {survey_code}. "
         "Copy and paste that code into the Qualtrics survey. "
         "If you want, you can return to the survey now or keep chatting with me longer."
+    )
+
+
+def build_survey_code_message(session: dict) -> str:
+    survey_code = session["survey_code"]
+    return (
+        f"Your survey code is {survey_code}. "
+        "Copy and paste that code into the Qualtrics survey. "
+        "Do you want to return to the survey now or keep chatting with me longer?"
     )
 
 
@@ -138,6 +150,7 @@ async def start_session(req: StartSessionRequest) -> StartSessionResponse:
         bot_name=snapshot["bot_name"],
         welcome_message=snapshot["welcome_message"],
         max_turns=snapshot["max_turns"],
+        survey_code_delay_seconds=SURVEY_CODE_DELAY_SECONDS,
     )
 
 
@@ -252,6 +265,29 @@ async def get_transcript(session_id: str) -> TranscriptResponse:
         bot_name=session["bot_name"],
         messages=session["messages"],
         total_turns=store.get_turn_count(session_id),
+    )
+
+
+@app.post("/api/survey-code", response_model=SurveyCodeResponse)
+async def issue_survey_code(req: SurveyCodeRequest) -> SurveyCodeResponse:
+    session = store.get_session(req.session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    reply = build_survey_code_message(session)
+    if not session.get("survey_code_issued"):
+        store.mark_survey_code_issued(req.session_id)
+        store.add_message(
+            req.session_id,
+            "assistant",
+            reply,
+            metadata={"kind": "survey_code"},
+        )
+
+    return SurveyCodeResponse(
+        session_id=req.session_id,
+        survey_code=session["survey_code"],
+        reply=reply,
     )
 
 

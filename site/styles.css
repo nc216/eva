@@ -362,6 +362,42 @@ h1,
   color: #f7d6c1;
 }
 
+.bubble-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.95rem;
+}
+
+.bubble-button,
+.bubble-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.8rem;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.bubble-button {
+  border: none;
+}
+
+.bubble-link {
+  background: linear-gradient(180deg, var(--accent), #d89359);
+  color: #23160f;
+}
+
+.bubble-button.secondary,
+.bubble-link.secondary {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .composer-shell {
   padding-top: 0.35rem;
 }
@@ -477,6 +513,7 @@ button:disabled {
   .admin-layout {
     grid-template-columns: 1fr;
   }
+}
 
 @media (max-width: 720px) {
   .layout,
@@ -531,5 +568,9 @@ button:disabled {
 
   .bubble {
     max-width: 100%;
+  }
+
+  .bubble-actions {
+    flex-direction: column;
   }
 }

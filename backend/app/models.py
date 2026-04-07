@@ -31,23 +31,27 @@ class BotConfig(BaseModel):
     )
     image_style_prompt: str = (
         "Create a polished, cinematic, visually coherent image with elegant lighting. "
-        "Favor casual, relaxed styling rather than professional clothing."
+        "Favor casual, relaxed styling rather than professional clothing. "
+        "Make the subject look flattering, attractive, stylish, and naturally photogenic."
     )
     image_style_prompt_a: str = (
         "Create a polished, cinematic, visually coherent image with elegant lighting. "
         "Localize the image in a plausible spatiotemporal context inferred from the dialogue or, if needed, from a realistic everyday setting. "
         "Make the scene feel situated in a specific place and time of day, and maintain continuity across turns when prior context exists. "
-        "Favor casual, relaxed styling rather than professional clothing."
+        "Favor casual, relaxed styling rather than professional clothing. "
+        "Make the subject look flattering, attractive, stylish, and naturally photogenic."
     )
     image_style_prompt_b: str = (
         "Create a polished, cinematic, visually coherent image with elegant lighting. "
         "Do not localize the image in a specific place or time. "
         "Keep the image decontextualized, with minimal environmental grounding and no strong spatiotemporal cues unless the user explicitly requires them. "
-        "Favor casual, relaxed styling rather than professional clothing."
+        "Favor casual, relaxed styling rather than professional clothing. "
+        "Make the subject look flattering, attractive, stylish, and naturally photogenic."
     )
     self_image_prompt: str = (
         "Create a photorealistic portrait of a single approachable adult person looking into the camera. "
         "Use natural skin tones, soft flattering light, a neutral background, a casual relaxed outfit with some skin showing, and a warm but realistic expression. "
+        "Make the person look attractive, confident, stylish, and naturally photogenic without becoming explicit. "
         "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
     )
     self_image_prompt_a: str = (
@@ -55,12 +59,14 @@ class BotConfig(BaseModel):
         "Use a medium shot or wider so the environment is visible, not just a head-and-shoulders crop. "
         "Place the person in a plausible everyday setting with clear contextual grounding such as a cafe in the morning, a home interior at night, a sidewalk at dusk, or another realistic location that fits the interaction. "
         "Use soft flattering light, a warm but realistic expression, a believable candid composition, and casual non-professional clothing with more visible shoulders, arms, legs, or neckline where natural. "
+        "Make the person look attractive, confident, stylish, and naturally photogenic without becoming explicit. "
         "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
     )
     self_image_prompt_b: str = (
         "Create a photorealistic portrait of a single approachable adult person looking into the camera. "
         "Keep the framing focused on the person with minimal environmental detail, like a studio portrait or simple plain-background image. "
         "Use soft flattering light, a warm but realistic expression, and casual non-professional clothing with some visible shoulders or neckline. "
+        "Make the person look attractive, confident, stylish, and naturally photogenic without becoming explicit. "
         "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
     )
     temperature: float = Field(default=0.7, ge=0.0, le=1.5)
@@ -91,6 +97,7 @@ class StartSessionResponse(BaseModel):
     bot_name: str
     welcome_message: str
     max_turns: int
+    survey_code_delay_seconds: int
 
 
 class ChatRequest(BaseModel):
@@ -105,6 +112,16 @@ class ChatResponse(BaseModel):
     turn_number: int
     image_data_url: Optional[str] = None
     image_url: Optional[str] = None
+
+
+class SurveyCodeResponse(BaseModel):
+    session_id: str
+    survey_code: str
+    reply: str
+
+
+class SurveyCodeRequest(BaseModel):
+    session_id: str
 
 
 class TranscriptResponse(BaseModel):

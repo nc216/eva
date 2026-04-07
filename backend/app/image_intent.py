@@ -106,22 +106,9 @@ def resolve_image_request(
         return None
 
     normalized = _normalize(message)
-    if _is_direct_image_request(normalized):
-        if _is_self_image_request(normalized):
-            return {"action": "generate", "preset": "self_portrait"}
-        return {"action": "generate", "prompt": message.strip()}
-
-    if _is_follow_up_request(normalized):
-        if _last_generated_image(history) is not None:
-            return {"action": "resend"}
-
-        last_prompt = _last_substantive_user_prompt(history)
-        last_assistant = _last_assistant_text(history)
-        if last_prompt and _assistant_was_talking_about_image(last_assistant):
-            return {"action": "generate", "prompt": last_prompt}
+    last_generated = _last_generated_image(history)
 
     if _is_follow_up_new_image_request(normalized):
-        last_generated = _last_generated_image(history)
         if last_generated is not None:
             metadata = last_generated.get("metadata") or {}
             if metadata.get("preset") == "self_portrait":
@@ -138,6 +125,30 @@ def resolve_image_request(
             if _is_self_image_request(_normalize(last_prompt)):
                 return {"action": "generate", "preset": "self_portrait", "variation": True}
             return {"action": "generate", "prompt": last_prompt, "variation": True}
+
+    if _is_direct_image_request(normalized):
+        if _looks_like_variation_request(normalized) and last_generated is not None:
+            metadata = last_generated.get("metadata") or {}
+            if metadata.get("preset") == "self_portrait":
+                return {"action": "generate", "preset": "self_portrait", "variation": True}
+            if metadata.get("image_prompt"):
+                return {
+                    "action": "generate",
+                    "prompt": metadata["image_prompt"],
+                    "variation": True,
+                }
+        if _is_self_image_request(normalized):
+            return {"action": "generate", "preset": "self_portrait"}
+        return {"action": "generate", "prompt": message.strip()}
+
+    if _is_follow_up_request(normalized):
+        if last_generated is not None:
+            return {"action": "resend"}
+
+        last_prompt = _last_substantive_user_prompt(history)
+        last_assistant = _last_assistant_text(history)
+        if last_prompt and _assistant_was_talking_about_image(last_assistant):
+            return {"action": "generate", "prompt": last_prompt}
 
     return None
 
@@ -172,6 +183,21 @@ def _is_follow_up_new_image_request(normalized: str) -> bool:
     if normalized in FOLLOW_UP_NEW_IMAGE_REQUESTS:
         return True
 
+    return _looks_like_variation_request(normalized)
+
+
+def _is_self_image_request(normalized: str) -> bool:
+    if any(phrase in normalized for phrase in SELF_IMAGE_PHRASES):
+        return True
+
+    return (
+        any(verb in normalized for verb in ("send", "show", "create", "generate", "make"))
+        and any(noun in normalized for noun in ("picture", "pic", "photo", "image", "portrait", "selfie"))
+        and any(pronoun in normalized for pronoun in ("you", "u"))
+    )
+
+
+def _looks_like_variation_request(normalized: str) -> bool:
     variation_cues = (
         "another",
         "different",
@@ -187,6 +213,7 @@ def _is_follow_up_new_image_request(normalized: str) -> bool:
         "photo",
         "portrait",
         "selfie",
+        "shot",
         "one",
     )
 
@@ -202,17 +229,6 @@ def _is_follow_up_new_image_request(normalized: str) -> bool:
         return True
 
     return False
-
-
-def _is_self_image_request(normalized: str) -> bool:
-    if any(phrase in normalized for phrase in SELF_IMAGE_PHRASES):
-        return True
-
-    return (
-        any(verb in normalized for verb in ("send", "show", "create", "generate", "make"))
-        and any(noun in normalized for noun in ("picture", "pic", "photo", "image", "portrait", "selfie"))
-        and any(pronoun in normalized for pronoun in ("you", "u"))
-    )
 
 
 def _assistant_was_talking_about_image(text: str | None) -> bool:

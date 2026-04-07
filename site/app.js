@@ -13,6 +13,8 @@ const welcomeCopyEl = document.getElementById("welcome-copy");
 let sessionId = null;
 let turnCount = 0;
 let maxTurns = 0;
+let surveyCodeTimerId = null;
+let surveyCodeShown = false;
 function queryValue(name) {
   return new URLSearchParams(window.location.search).get(name);
 }
@@ -44,12 +46,25 @@ function setComposerEnabled(enabled) {
   sendButton.disabled = !enabled;
 }
 
+function resolveReturnUrl() {
+  const explicit = queryValue("return_url");
+  if (explicit) {
+    return explicit;
+  }
+
+  if (document.referrer && /qualtrics\.com/i.test(document.referrer)) {
+    return document.referrer;
+  }
+
+  return null;
+}
+
 function autoresizeInput() {
   messageInput.style.height = "auto";
   messageInput.style.height = Math.min(messageInput.scrollHeight, 160) + "px";
 }
 
-function addBubble(role, text, imageSource = null) {
+function addBubble(role, text, imageSource = null, options = {}) {
   const wrap = document.createElement("article");
   wrap.className = `bubble ${role}`;
 
@@ -84,6 +99,43 @@ function addBubble(role, text, imageSource = null) {
 
     wrap.appendChild(image);
     wrap.appendChild(openLink);
+  }
+
+  if (Array.isArray(options.actions) && options.actions.length > 0) {
+    const actions = document.createElement("div");
+    actions.className = "bubble-actions";
+
+    options.actions.forEach((action) => {
+      if (!action || !action.label) {
+        return;
+      }
+
+      if (action.href) {
+        const link = document.createElement("a");
+        link.className = action.secondary ? "bubble-link secondary" : "bubble-link";
+        link.href = action.href;
+        link.textContent = action.label;
+        if (action.newTab) {
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+        }
+        actions.appendChild(link);
+        return;
+      }
+
+      if (typeof action.onClick === "function") {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = action.secondary ? "bubble-button secondary" : "bubble-button";
+        button.textContent = action.label;
+        button.addEventListener("click", action.onClick);
+        actions.appendChild(button);
+      }
+    });
+
+    if (actions.children.length > 0) {
+      wrap.appendChild(actions);
+    }
   }
 
   chatStream.appendChild(wrap);
@@ -121,6 +173,59 @@ async function startSession() {
   }
 
   return response.json();
+}
+
+async function fetchSurveyCode() {
+  if (!sessionId || surveyCodeShown) {
+    return;
+  }
+
+  const response = await fetch(`${apiBaseUrl}/api/survey-code`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || "Could not load survey code");
+  }
+
+  surveyCodeShown = true;
+
+  const returnUrl = resolveReturnUrl();
+  const actions = [];
+  if (returnUrl) {
+    actions.push({ label: "Return to survey", href: returnUrl });
+  }
+  actions.push({
+    label: "Keep chatting",
+    secondary: true,
+    onClick: () => {
+      messageInput.focus();
+    },
+  });
+
+  addBubble("assistant", data.reply, null, { actions });
+  turnStatus.textContent = `Turn ${turnCount} of ${maxTurns}`;
+}
+
+function scheduleSurveyCode(delaySeconds) {
+  if (surveyCodeTimerId) {
+    window.clearTimeout(surveyCodeTimerId);
+  }
+
+  if (!delaySeconds || delaySeconds <= 0) {
+    return;
+  }
+
+  surveyCodeTimerId = window.setTimeout(async () => {
+    try {
+      await fetchSurveyCode();
+    } catch (error) {
+      addBubble("system", error.message);
+    }
+  }, delaySeconds * 1000);
 }
 
 async function sendMessage() {
@@ -174,9 +279,12 @@ async function init() {
     const session = await startSession();
     sessionId = session.session_id;
     maxTurns = session.max_turns;
+    surveyCodeShown = false;
 
     chatTitle.textContent = session.bot_name;
     turnStatus.textContent = `Turn 0 of ${maxTurns}`;
+    addBubble("assistant", session.welcome_message);
+    scheduleSurveyCode(session.survey_code_delay_seconds);
     setComposerEnabled(true);
     messageInput.focus();
   } catch (error) {
