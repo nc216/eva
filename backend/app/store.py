@@ -37,10 +37,10 @@ LOCALIZED_SCENES = (
 )
 
 SIGNATURE_OUTFITS = (
-    "a fitted off-shoulder knit top with a dark denim mini skirt and simple jewelry",
-    "a soft camisole with an open lightweight cardigan and relaxed high-waisted shorts",
-    "a sleeveless fitted top with a casual skirt and understated everyday jewelry",
-    "a relaxed scoop-neck top with high-waisted shorts and a light casual layer",
+    "a fitted cream off-shoulder knit top with a dark blue denim mini skirt and simple gold jewelry",
+    "a soft black camisole with an open light beige cardigan and relaxed light-wash high-waisted shorts",
+    "a sleeveless olive fitted top with a black casual skirt and understated silver everyday jewelry",
+    "a relaxed white scoop-neck top with tan high-waisted shorts and a light heather-gray casual layer",
 )
 
 
@@ -112,7 +112,8 @@ def _build_session_system_prompt(
         f"- Your stable visual identity for this conversation is: {visual_identity}.",
         "- Keep your visual identity consistent across all images in this conversation.",
         f"- Your signature outfit for this conversation is: {signature_outfit}.",
-        "- Keep that same outfit in self-photos unless the user explicitly asks you to change clothes.",
+        "- Keep that same exact outfit in self-photos unless the user explicitly asks you to change clothes.",
+        "- Do not change the color of the top, bottom, layer, or accessories between self-photos.",
         "- If the user asks for another or a different picture, provide a new photo with the same identity rather than repeating the previous composition.",
         "- When referring to a new self-photo, use natural language like 'I took another picture for you' rather than saying you generated an image.",
     ]

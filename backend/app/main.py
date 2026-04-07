@@ -61,7 +61,8 @@ def build_image_prompt(
     if signature_outfit and image_request.get("preset") == "self_portrait":
         parts.append(
             "Use the same exact outfit across self-photos in this conversation unless the user explicitly asks to change clothes. "
-            "Keep the same garment types, colors, styling, and accessories rather than swapping to a different outfit: "
+            "Keep the same garment types, colors, styling, layering, and accessories rather than swapping to a different outfit: "
+            "Do not recolor the shirt, skirt, shorts, cardigan, jacket, dress, or jewelry between images. "
             f"{signature_outfit}."
         )
 
@@ -75,7 +76,7 @@ def build_image_prompt(
     if image_count > 0 or image_request.get("variation"):
         parts.append(
             "This must be a genuinely different photo from earlier ones in the conversation. "
-            "Keep the same identity and the same exact outfit, but change the framing, camera angle, pose, expression, action, or distance so it does not look like a duplicate."
+            "Keep the same identity and the same exact outfit with the same exact clothing colors, but change the framing, camera angle, pose, expression, action, or distance so it does not look like a duplicate."
         )
 
     return "\n\n".join(parts)
