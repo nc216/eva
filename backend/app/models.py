@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -101,11 +101,28 @@ class StartSessionResponse(BaseModel):
     welcome_message: str
     max_turns: int
     survey_code_delay_seconds: int
+    recovery: "SessionRecovery"
+
+
+class SessionRecovery(BaseModel):
+    session_id: str
+    participant_id: Optional[str]
+    study_condition: Optional[str]
+    bot_name: str
+    config_snapshot: dict[str, Any]
+    visual_identity: Optional[str] = None
+    localized_scene: Optional[dict[str, str]] = None
+    signature_outfit: Optional[dict[str, Any]] = None
+    survey_code: str
+    survey_code_issued: bool = False
+    messages: list[dict] = Field(default_factory=list)
+    created_at: str
 
 
 class ChatRequest(BaseModel):
     session_id: str
     message: str = Field(min_length=1, max_length=4000)
+    recovery: Optional["SessionRecovery"] = None
 
 
 class ChatResponse(BaseModel):
@@ -115,6 +132,7 @@ class ChatResponse(BaseModel):
     turn_number: int
     image_data_url: Optional[str] = None
     image_url: Optional[str] = None
+    recovery: "SessionRecovery"
 
 
 class SurveyCodeResponse(BaseModel):

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from app import config
-from app.models import BotConfig, PublicBotConfig
+from app.models import BotConfig, PublicBotConfig, SessionRecovery
 
 _sessions: dict[str, dict[str, Any]] = {}
 
@@ -221,6 +221,33 @@ def get_public_bot_config() -> PublicBotConfig:
         max_turns=bot_config.max_turns,
         image_generation_enabled=bot_config.image_generation_enabled,
     )
+
+
+def build_recovery(session: dict[str, Any]) -> SessionRecovery:
+    normalized_signature_outfit = normalize_signature_outfit(session.get("signature_outfit"))
+    session["signature_outfit"] = normalized_signature_outfit
+    return SessionRecovery(
+        session_id=session["session_id"],
+        participant_id=session.get("participant_id"),
+        study_condition=session.get("study_condition"),
+        bot_name=session.get("bot_name", "Aster"),
+        config_snapshot=session.get("config_snapshot", {}),
+        visual_identity=session.get("visual_identity"),
+        localized_scene=session.get("localized_scene"),
+        signature_outfit=normalized_signature_outfit,
+        survey_code=session.get("survey_code", ""),
+        survey_code_issued=bool(session.get("survey_code_issued")),
+        messages=session.get("messages", []),
+        created_at=session.get("created_at", _now_iso()),
+    )
+
+
+def restore_session(recovery: SessionRecovery) -> dict[str, Any]:
+    session = recovery.model_dump()
+    session["signature_outfit"] = normalize_signature_outfit(session.get("signature_outfit"))
+    _sessions[recovery.session_id] = session
+    persist_transcript(session)
+    return session
 
 
 def create_session(

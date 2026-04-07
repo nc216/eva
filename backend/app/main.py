@@ -180,12 +180,15 @@ async def start_session(req: StartSessionRequest) -> StartSessionResponse:
         welcome_message=snapshot["welcome_message"],
         max_turns=snapshot["max_turns"],
         survey_code_delay_seconds=SURVEY_CODE_DELAY_SECONDS,
+        recovery=store.build_recovery(session),
     )
 
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest) -> ChatResponse:
     session = store.get_session(req.session_id)
+    if session is None and req.recovery is not None:
+        session = store.restore_session(req.recovery)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -238,6 +241,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
         kind="text",
         reply=reply,
         turn_number=turn_count + 1,
+        recovery=store.build_recovery(store.get_session(req.session_id) or session),
     )
 
 
@@ -273,6 +277,7 @@ async def _respond_with_image(
                 reply=reply,
                 turn_number=turn_count + 1,
                 image_url=image_url,
+                recovery=store.build_recovery(store.get_session(session_id) or session),
             )
 
     image_prompt = build_image_prompt(session, snapshot, image_request)
@@ -306,6 +311,7 @@ async def _respond_with_image(
         reply=reply,
         turn_number=turn_count + 1,
         image_url=image_url,
+        recovery=store.build_recovery(store.get_session(session_id) or session),
     )
 
 

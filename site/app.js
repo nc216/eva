@@ -14,6 +14,33 @@ let turnCount = 0;
 let maxTurns = 0;
 let surveyCodeTimerId = null;
 let surveyCodeShown = false;
+let sessionRecovery = null;
+
+function storageKey() {
+  const participant = queryValue("participant") || "anon";
+  const condition = queryValue("condition") || queryValue("cond") || "none";
+  return `participant-chat-lab:${participant}:${condition}`;
+}
+
+function persistSessionRecovery() {
+  if (!sessionRecovery) {
+    return;
+  }
+  window.localStorage.setItem(storageKey(), JSON.stringify(sessionRecovery));
+}
+
+function loadSessionRecovery() {
+  const raw = window.localStorage.getItem(storageKey());
+  if (!raw) {
+    return null;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 function queryValue(name) {
   return new URLSearchParams(window.location.search).get(name);
 }
@@ -141,6 +168,27 @@ function addBubble(role, text, imageSource = null, options = {}) {
   chatStream.scrollTop = chatStream.scrollHeight;
 }
 
+function renderRecoveryMessages(recovery) {
+  const messages = Array.isArray(recovery?.messages) ? recovery.messages : [];
+  if (messages.length === 0) {
+    addBubble(
+      "assistant",
+      recovery?.config_snapshot?.welcome_message
+        || "Hi, I’m Aster. Ask me anything. And if you want a picture, just ask me to send one.",
+    );
+    return;
+  }
+
+  messages.forEach((message) => {
+    const metadata = message.metadata || {};
+    addBubble(
+      message.role || "assistant",
+      message.content || "",
+      metadata.image_url || metadata.image_data_url || null,
+    );
+  });
+}
+
 function applyTheme(config) {
   document.documentElement.style.setProperty("--accent", config.accent_color);
   botNameEl.textContent = config.bot_name;
@@ -156,6 +204,21 @@ async function fetchPublicConfig() {
 }
 
 async function startSession() {
+  const cachedRecovery = loadSessionRecovery();
+  if (cachedRecovery?.session_id) {
+    return {
+      session_id: cachedRecovery.session_id,
+      bot_name: cachedRecovery.bot_name,
+      welcome_message:
+        cachedRecovery.config_snapshot?.welcome_message
+        || "Hi, I’m Aster. Ask me anything. And if you want a picture, just ask me to send one.",
+      max_turns: cachedRecovery.config_snapshot?.max_turns || 30,
+      survey_code_delay_seconds: 300,
+      recovery: cachedRecovery,
+      restored_from_cache: true,
+    };
+  }
+
   const studyCondition = queryValue("condition") || queryValue("cond");
   const response = await fetch(`${apiBaseUrl}/api/session`, {
     method: "POST",
@@ -171,6 +234,33 @@ async function startSession() {
   }
 
   return response.json();
+}
+
+async function postChatMessage(payload, attempt = 0) {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      if ((data.detail === "Session not found" || response.status >= 500) && attempt < 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 800));
+        return postChatMessage(payload, attempt + 1);
+      }
+      throw new Error(data.detail || "Message failed");
+    }
+
+    return data;
+  } catch (error) {
+    if (attempt < 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 800));
+      return postChatMessage(payload, attempt + 1);
+    }
+    throw error;
+  }
 }
 
 async function fetchSurveyCode() {
@@ -190,6 +280,10 @@ async function fetchSurveyCode() {
   }
 
   surveyCodeShown = true;
+  if (sessionRecovery) {
+    sessionRecovery.survey_code_issued = true;
+    persistSessionRecovery();
+  }
 
   const returnUrl = resolveReturnUrl();
   const actions = [];
@@ -239,18 +333,15 @@ async function sendMessage() {
   turnStatus.textContent = "Thinking…";
 
   try {
-    const response = await fetch(`${apiBaseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId, message }),
+    const data = await postChatMessage({
+      session_id: sessionId,
+      message,
+      recovery: sessionRecovery,
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.detail || "Message failed");
-    }
-
     addBubble("assistant", data.reply, data.image_url || data.image_data_url || null);
+    sessionRecovery = data.recovery || sessionRecovery;
+    persistSessionRecovery();
     turnCount = data.turn_number;
     turnStatus.textContent = `Turn ${turnCount} of ${maxTurns}`;
 
@@ -277,11 +368,21 @@ async function init() {
     const session = await startSession();
     sessionId = session.session_id;
     maxTurns = session.max_turns;
-    surveyCodeShown = false;
+    sessionRecovery = session.recovery || sessionRecovery;
+    persistSessionRecovery();
+    surveyCodeShown = Boolean(sessionRecovery?.survey_code_issued);
 
     chatTitle.textContent = session.bot_name;
-    turnStatus.textContent = `Turn 0 of ${maxTurns}`;
-    addBubble("assistant", session.welcome_message);
+    if (session.restored_from_cache) {
+      renderRecoveryMessages(sessionRecovery);
+      turnCount = Array.isArray(sessionRecovery?.messages)
+        ? sessionRecovery.messages.filter((message) => message.role === "user").length
+        : 0;
+    } else {
+      turnCount = 0;
+      addBubble("assistant", session.welcome_message);
+    }
+    turnStatus.textContent = `Turn ${turnCount} of ${maxTurns}`;
     scheduleSurveyCode(session.survey_code_delay_seconds);
     setComposerEnabled(true);
     messageInput.focus();
