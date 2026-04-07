@@ -51,6 +51,12 @@ def build_image_prompt(
             "Keep the image grounded in this same setting unless the user clearly asks to change it: "
             f"{localized_scene['prompt']}."
         )
+    elif session.get("study_condition") == "B":
+        parts.append(
+            "Keep this image decontextualized and studio-like. "
+            "Use a plain, neutral, non-descript background with no discernable location cues. "
+            "Do not show a room, furniture, bed, couch, kitchen, street, window view, or any other specific environment."
+        )
 
     if signature_outfit and image_request.get("preset") == "self_portrait":
         parts.append(

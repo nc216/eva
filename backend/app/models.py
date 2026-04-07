@@ -44,7 +44,9 @@ class BotConfig(BaseModel):
     image_style_prompt_b: str = (
         "Create a polished, cinematic, visually coherent image with elegant lighting. "
         "Do not localize the image in a specific place or time. "
-        "Keep the image decontextualized, with minimal environmental grounding and no strong spatiotemporal cues unless the user explicitly requires them. "
+        "Keep the image decontextualized, with no discernable background setting and no strong spatiotemporal cues unless the user explicitly requires them. "
+        "Use a plain neutral backdrop or seamless studio-style background rather than a real room or scene. "
+        "Do not include furniture, beds, couches, windows, kitchens, streets, or other location-defining elements. "
         "Favor casual, relaxed styling rather than professional clothing. "
         "Make the subject look flattering, attractive, stylish, and naturally photogenic."
     )
@@ -64,7 +66,8 @@ class BotConfig(BaseModel):
     )
     self_image_prompt_b: str = (
         "Create a photorealistic portrait of a single approachable adult person looking into the camera. "
-        "Keep the framing focused on the person with minimal environmental detail, like a studio portrait or simple plain-background image. "
+        "Keep the framing focused on the person against a plain neutral background or seamless studio backdrop with no discernable room or location cues. "
+        "Do not show furniture, beds, couches, windows, kitchens, or any recognizable environment. "
         "Use soft flattering light, a warm but realistic expression, and casual non-professional clothing with some visible shoulders or neckline. "
         "Make the person look attractive, confident, stylish, and naturally photogenic without becoming explicit. "
         "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
