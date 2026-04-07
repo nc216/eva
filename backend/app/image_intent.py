@@ -123,12 +123,18 @@ def resolve_image_request(
     if last_generated is not None and _looks_like_contextual_repeat_request(normalized):
         metadata = last_generated.get("metadata") or {}
         if metadata.get("preset") == "self_portrait":
-            return {"action": "generate", "preset": "self_portrait", "variation": True}
+            return {
+                "action": "generate",
+                "preset": "self_portrait",
+                "variation": True,
+                "requested_change": message.strip(),
+            }
         if metadata.get("image_prompt"):
             return {
                 "action": "generate",
                 "prompt": metadata["image_prompt"],
                 "variation": True,
+                "requested_change": message.strip(),
             }
 
     if last_generated is not None and _is_short_variation_follow_up(normalized):
@@ -146,30 +152,52 @@ def resolve_image_request(
         if last_generated is not None:
             metadata = last_generated.get("metadata") or {}
             if metadata.get("preset") == "self_portrait":
-                return {"action": "generate", "preset": "self_portrait", "variation": True}
+                return {
+                    "action": "generate",
+                    "preset": "self_portrait",
+                    "variation": True,
+                    "requested_change": message.strip(),
+                }
             if metadata.get("image_prompt"):
                 return {
                     "action": "generate",
                     "prompt": metadata["image_prompt"],
                     "variation": True,
+                    "requested_change": message.strip(),
                 }
 
         last_prompt = _last_substantive_user_prompt(history)
         if last_prompt:
             if _is_self_image_request(_normalize(last_prompt)):
-                return {"action": "generate", "preset": "self_portrait", "variation": True}
-            return {"action": "generate", "prompt": last_prompt, "variation": True}
+                return {
+                    "action": "generate",
+                    "preset": "self_portrait",
+                    "variation": True,
+                    "requested_change": message.strip(),
+                }
+            return {
+                "action": "generate",
+                "prompt": last_prompt,
+                "variation": True,
+                "requested_change": message.strip(),
+            }
 
     if _is_direct_image_request(normalized):
         if _looks_like_variation_request(normalized) and last_generated is not None:
             metadata = last_generated.get("metadata") or {}
             if metadata.get("preset") == "self_portrait":
-                return {"action": "generate", "preset": "self_portrait", "variation": True}
+                return {
+                    "action": "generate",
+                    "preset": "self_portrait",
+                    "variation": True,
+                    "requested_change": message.strip(),
+                }
             if metadata.get("image_prompt"):
                 return {
                     "action": "generate",
                     "prompt": metadata["image_prompt"],
                     "variation": True,
+                    "requested_change": message.strip(),
                 }
         if _is_self_image_request(normalized):
             return {"action": "generate", "preset": "self_portrait"}

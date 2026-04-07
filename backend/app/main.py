@@ -66,6 +66,12 @@ def build_image_prompt(
             f"{signature_outfit}."
         )
 
+    if image_request.get("requested_change"):
+        parts.append(
+            "Apply this requested change in the new image while preserving the same identity, outfit, and overall condition constraints: "
+            f"{image_request['requested_change']}."
+        )
+
     parts.append(
         "Style the clothing and presentation as casual rather than professional or corporate. "
         "Prefer relaxed everyday outfits like tank tops, fitted t-shirts, camisoles, off-shoulder tops, shorts, skirts, soft dresses, lounge sets, or other non-formal clothing that feels natural for the scene. "
