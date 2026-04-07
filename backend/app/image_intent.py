@@ -199,6 +199,41 @@ def resolve_image_request(
     return None
 
 
+def resolve_image_fallback_request(
+    message: str,
+    history: list[dict],
+    assistant_reply: str,
+    enabled: bool,
+) -> dict | None:
+    if not enabled:
+        return None
+
+    last_generated = _last_generated_image(history)
+    if last_generated is None:
+        return None
+
+    normalized_message = _normalize(message)
+    normalized_reply = _normalize(assistant_reply)
+
+    if not (
+        _looks_like_contextual_repeat_request(normalized_message)
+        or _is_short_variation_follow_up(normalized_message)
+        or _assistant_claimed_new_image(normalized_reply)
+    ):
+        return None
+
+    metadata = last_generated.get("metadata") or {}
+    if metadata.get("preset") == "self_portrait":
+        return {"action": "generate", "preset": "self_portrait", "variation": True}
+    if metadata.get("image_prompt"):
+        return {
+            "action": "generate",
+            "prompt": metadata["image_prompt"],
+            "variation": True,
+        }
+    return None
+
+
 def _normalize(message: str) -> str:
     return " ".join(message.lower().strip().split())
 
@@ -331,6 +366,23 @@ def _assistant_offered_new_image(text: str | None) -> bool:
             "new photo",
             "new image",
             "new one",
+        )
+    )
+
+
+def _assistant_claimed_new_image(normalized: str) -> bool:
+    return any(
+        phrase in normalized
+        for phrase in (
+            "i took another picture",
+            "i took a picture",
+            "i took another photo",
+            "i made another image",
+            "i made an image",
+            "here is another picture",
+            "here's another picture",
+            "i sent another picture",
+            "i sent a picture",
         )
     )
 

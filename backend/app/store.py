@@ -238,7 +238,9 @@ def add_message(
     content: str,
     metadata: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
-    session = _sessions[session_id]
+    session = get_session(session_id)
+    if session is None:
+        raise KeyError(f"Session {session_id} not found")
     message = {
         "role": role,
         "content": content,
@@ -252,7 +254,7 @@ def add_message(
 
 
 def get_turn_count(session_id: str) -> int:
-    session = _sessions.get(session_id)
+    session = get_session(session_id)
     if session is None:
         return 0
     return sum(1 for message in session["messages"] if message["role"] == "user")

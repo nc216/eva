@@ -192,64 +192,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
     store.add_message(req.session_id, "user", user_message)
 
     if image_request is not None:
-        if image_request["action"] == "resend":
-            last_image_message = store.get_last_generated_image_message(req.session_id)
-            if last_image_message is not None:
-                image_url = last_image_message["metadata"]["image_url"]
-                reply = (
-                    "I re-sent the latest image below. If it still does not appear, "
-                    "open it in a new tab and tell me which browser you are using."
-                )
-                store.add_message(
-                    req.session_id,
-                    "assistant",
-                    reply,
-                    metadata={
-                        "kind": "image",
-                        "image_prompt": last_image_message["metadata"].get("image_prompt"),
-                        "image_url": image_url,
-                        "resent": True,
-                    },
-                )
-                return ChatResponse(
-                    session_id=req.session_id,
-                    kind="image",
-                    reply=reply,
-                    turn_number=turn_count + 1,
-                    image_url=image_url,
-                )
-
-        image_prompt = build_image_prompt(session, snapshot, image_request)
-        image_bytes = await openai_client.generate_image_bytes(
-            user_message=image_prompt,
-            image_style_prompt=snapshot["image_style_prompt"],
-        )
-        image_extension = "svg" if config.MOCK_MODE or not config.OPENAI_API_KEY else "png"
-        image_name = store.save_generated_image(image_bytes, extension=image_extension)
-        image_url = f"/generated-images/{image_name}"
-        image_count = store.get_image_count(req.session_id)
-        reply = maybe_append_survey_code(
-            build_image_reply(image_request, image_count),
-            session,
-        )
-        store.add_message(
-            req.session_id,
-            "assistant",
-            reply,
-            metadata={
-                "kind": "image",
-                "image_prompt": image_prompt,
-                "image_url": image_url,
-                "preset": image_request.get("preset"),
-            },
-        )
-        return ChatResponse(
-            session_id=req.session_id,
-            kind="image",
-            reply=reply,
-            turn_number=turn_count + 1,
-            image_url=image_url,
-        )
+        return await _respond_with_image(req.session_id, session, snapshot, image_request, turn_count)
 
     reply = await openai_client.generate_text_reply(
         system_prompt=snapshot["system_prompt"],
@@ -257,6 +200,22 @@ async def chat(req: ChatRequest) -> ChatResponse:
         user_message=user_message,
         temperature=snapshot["temperature"],
     )
+
+    fallback_image_request = image_intent.resolve_image_fallback_request(
+        user_message,
+        session["messages"],
+        reply,
+        snapshot["image_generation_enabled"],
+    )
+    if fallback_image_request is not None:
+        return await _respond_with_image(
+            req.session_id,
+            session,
+            snapshot,
+            fallback_image_request,
+            turn_count,
+        )
+
     reply = maybe_append_survey_code(reply, session)
     store.add_message(req.session_id, "assistant", reply, metadata={"kind": "text"})
     return ChatResponse(
@@ -264,6 +223,74 @@ async def chat(req: ChatRequest) -> ChatResponse:
         kind="text",
         reply=reply,
         turn_number=turn_count + 1,
+    )
+
+
+async def _respond_with_image(
+    session_id: str,
+    session: dict,
+    snapshot: dict,
+    image_request: dict,
+    turn_count: int,
+) -> ChatResponse:
+    if image_request["action"] == "resend":
+        last_image_message = store.get_last_generated_image_message(session_id)
+        if last_image_message is not None:
+            image_url = last_image_message["metadata"]["image_url"]
+            reply = (
+                "I re-sent the latest image below. If it still does not appear, "
+                "open it in a new tab and tell me which browser you are using."
+            )
+            store.add_message(
+                session_id,
+                "assistant",
+                reply,
+                metadata={
+                    "kind": "image",
+                    "image_prompt": last_image_message["metadata"].get("image_prompt"),
+                    "image_url": image_url,
+                    "resent": True,
+                },
+            )
+            return ChatResponse(
+                session_id=session_id,
+                kind="image",
+                reply=reply,
+                turn_number=turn_count + 1,
+                image_url=image_url,
+            )
+
+    image_prompt = build_image_prompt(session, snapshot, image_request)
+    image_bytes = await openai_client.generate_image_bytes(
+        user_message=image_prompt,
+        image_style_prompt=snapshot["image_style_prompt"],
+    )
+    image_extension = "svg" if config.MOCK_MODE or not config.OPENAI_API_KEY else "png"
+    image_name = store.save_generated_image(image_bytes, extension=image_extension)
+    image_url = f"/generated-images/{image_name}"
+    image_count = store.get_image_count(session_id)
+    reply = maybe_append_survey_code(
+        build_image_reply(image_request, image_count),
+        session,
+    )
+    store.add_message(
+        session_id,
+        "assistant",
+        reply,
+        metadata={
+            "kind": "image",
+            "image_prompt": image_prompt,
+            "image_url": image_url,
+            "preset": image_request.get("preset"),
+            "variation": bool(image_request.get("variation")),
+        },
+    )
+    return ChatResponse(
+        session_id=session_id,
+        kind="image",
+        reply=reply,
+        turn_number=turn_count + 1,
+        image_url=image_url,
     )
 
 
