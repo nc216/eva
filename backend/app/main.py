@@ -89,13 +89,23 @@ def build_image_prompt(
 
 
 def build_image_reply(image_request: dict, image_count: int) -> str:
-    is_self_portrait = image_request.get("preset") == "self_portrait"
-    if is_self_portrait:
-        if image_count > 0 or image_request.get("variation"):
-            return "I took another picture for you."
-        return "I took a picture for you."
+    prompt_text = " ".join(
+        str(value)
+        for value in (
+            image_request.get("preset"),
+            image_request.get("prompt"),
+            image_request.get("requested_change"),
+        )
+        if value
+    ).lower()
+    sounds_like_photo = any(
+        cue in prompt_text
+        for cue in ("self", "you", "yourself", "selfie", "portrait", "photo", "picture", "pic")
+    )
     if image_count > 0 or image_request.get("variation"):
-        return "I made another image for you."
+        return "I took another picture for you."
+    if image_request.get("preset") == "self_portrait" or sounds_like_photo:
+        return "I took a picture for you."
     return "I made an image for you."
 
 
