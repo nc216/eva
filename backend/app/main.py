@@ -59,11 +59,24 @@ def build_image_prompt(
         )
 
     if signature_outfit and image_request.get("preset") == "self_portrait":
+        color_parts = [
+            f"top color must stay exactly {signature_outfit['top_color']}",
+            f"bottom color must stay exactly {signature_outfit['bottom_color']}",
+        ]
+        if signature_outfit.get("layer_color"):
+            color_parts.append(
+                f"outer layer color must stay exactly {signature_outfit['layer_color']}"
+            )
+        if signature_outfit.get("accessory_color"):
+            color_parts.append(
+                f"accessory color must stay exactly {signature_outfit['accessory_color']}"
+            )
         parts.append(
             "Use the same exact outfit across self-photos in this conversation unless the user explicitly asks to change clothes. "
             "Keep the same garment types, colors, styling, layering, and accessories rather than swapping to a different outfit: "
             "Do not recolor the shirt, skirt, shorts, cardigan, jacket, dress, or jewelry between images. "
-            f"{signature_outfit}."
+            f"{signature_outfit['prompt']}. "
+            f"Color lock: {'; '.join(color_parts)}."
         )
 
     if image_request.get("requested_change"):
@@ -89,24 +102,9 @@ def build_image_prompt(
 
 
 def build_image_reply(image_request: dict, image_count: int) -> str:
-    prompt_text = " ".join(
-        str(value)
-        for value in (
-            image_request.get("preset"),
-            image_request.get("prompt"),
-            image_request.get("requested_change"),
-        )
-        if value
-    ).lower()
-    sounds_like_photo = any(
-        cue in prompt_text
-        for cue in ("self", "you", "yourself", "selfie", "portrait", "photo", "picture", "pic")
-    )
     if image_count > 0 or image_request.get("variation"):
         return "I took another picture for you."
-    if image_request.get("preset") == "self_portrait" or sounds_like_photo:
-        return "I took a picture for you."
-    return "I made an image for you."
+    return "I took a picture for you."
 
 
 def maybe_append_survey_code(reply: str, session: dict) -> str:

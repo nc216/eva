@@ -37,10 +37,34 @@ LOCALIZED_SCENES = (
 )
 
 SIGNATURE_OUTFITS = (
-    "a fitted cream off-shoulder knit top with a dark blue denim mini skirt and simple gold jewelry",
-    "a soft black camisole with an open light beige cardigan and relaxed light-wash high-waisted shorts",
-    "a sleeveless olive fitted top with a black casual skirt and understated silver everyday jewelry",
-    "a relaxed white scoop-neck top with tan high-waisted shorts and a light heather-gray casual layer",
+    {
+        "prompt": "a fitted cream off-shoulder knit top with a dark blue denim mini skirt and simple gold jewelry",
+        "top_color": "cream",
+        "bottom_color": "dark blue denim",
+        "layer_color": None,
+        "accessory_color": "gold",
+    },
+    {
+        "prompt": "a soft black camisole with an open light beige cardigan and relaxed light-wash high-waisted shorts",
+        "top_color": "black",
+        "bottom_color": "light-wash blue denim",
+        "layer_color": "light beige",
+        "accessory_color": None,
+    },
+    {
+        "prompt": "a sleeveless olive fitted top with a black casual skirt and understated silver everyday jewelry",
+        "top_color": "olive",
+        "bottom_color": "black",
+        "layer_color": None,
+        "accessory_color": "silver",
+    },
+    {
+        "prompt": "a relaxed white scoop-neck top with tan high-waisted shorts and a light heather-gray casual layer",
+        "top_color": "white",
+        "bottom_color": "tan",
+        "layer_color": "light heather-gray",
+        "accessory_color": None,
+    },
 )
 
 
@@ -87,8 +111,30 @@ def _select_localized_scene() -> dict[str, str]:
     return random.choice(LOCALIZED_SCENES)
 
 
-def _select_signature_outfit() -> str:
+def _select_signature_outfit() -> dict[str, str | None]:
     return random.choice(SIGNATURE_OUTFITS)
+
+
+def normalize_signature_outfit(signature_outfit: Any) -> dict[str, str | None] | None:
+    if signature_outfit is None:
+        return None
+    if isinstance(signature_outfit, dict):
+        return {
+            "prompt": signature_outfit.get("prompt"),
+            "top_color": signature_outfit.get("top_color"),
+            "bottom_color": signature_outfit.get("bottom_color"),
+            "layer_color": signature_outfit.get("layer_color"),
+            "accessory_color": signature_outfit.get("accessory_color"),
+        }
+    if isinstance(signature_outfit, str):
+        return {
+            "prompt": signature_outfit,
+            "top_color": None,
+            "bottom_color": None,
+            "layer_color": None,
+            "accessory_color": None,
+        }
+    return None
 
 
 def _generate_survey_code(session_id: str) -> str:
@@ -111,7 +157,7 @@ def _build_session_system_prompt(
         "- You are always female.",
         f"- Your stable visual identity for this conversation is: {visual_identity}.",
         "- Keep your visual identity consistent across all images in this conversation.",
-        f"- Your signature outfit for this conversation is: {signature_outfit}.",
+        f"- Your signature outfit for this conversation is: {signature_outfit['prompt']}.",
         "- Keep that same exact outfit in self-photos unless the user explicitly asks you to change clothes.",
         "- Do not change the color of the top, bottom, layer, or accessories between self-photos.",
         "- If the user asks for another or a different picture, provide a new photo with the same identity rather than repeating the previous composition.",
@@ -225,10 +271,12 @@ def create_session(
 def get_session(session_id: str) -> Optional[dict[str, Any]]:
     session = _sessions.get(session_id)
     if session is not None:
+        session["signature_outfit"] = normalize_signature_outfit(session.get("signature_outfit"))
         return session
 
     session = load_saved_transcript(session_id)
     if session is not None:
+        session["signature_outfit"] = normalize_signature_outfit(session.get("signature_outfit"))
         _sessions[session_id] = session
     return session
 

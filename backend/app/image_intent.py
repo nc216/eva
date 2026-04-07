@@ -77,6 +77,25 @@ FOLLOW_UP_NEW_IMAGE_REQUESTS = (
     "more please",
 )
 
+PHOTO_ADJUSTMENT_CUES = (
+    "stand",
+    "standing",
+    "sit",
+    "sitting",
+    "pose",
+    "smile",
+    "closer",
+    "farther",
+    "further",
+    "full body",
+    "wider",
+    "zoom out",
+    "turn around",
+    "angle",
+    "look away",
+    "look at the camera",
+)
+
 FOLLOW_UP_ASSISTANT_HINTS = (
     "would you like me to send it",
     "the image should appear",
@@ -133,6 +152,16 @@ def resolve_image_request(
             return {
                 "action": "generate",
                 "prompt": metadata["image_prompt"],
+                "variation": True,
+                "requested_change": message.strip(),
+            }
+
+    if last_generated is not None and _looks_like_photo_adjustment_request(normalized):
+        metadata = last_generated.get("metadata") or {}
+        if metadata.get("preset") == "self_portrait":
+            return {
+                "action": "generate",
+                "preset": "self_portrait",
                 "variation": True,
                 "requested_change": message.strip(),
             }
@@ -362,6 +391,10 @@ def _looks_like_contextual_repeat_request(normalized: str) -> bool:
     return any(cue in normalized for cue in variation_cues) and any(
         verb in normalized for verb in delivery_verbs
     )
+
+
+def _looks_like_photo_adjustment_request(normalized: str) -> bool:
+    return any(cue in normalized for cue in PHOTO_ADJUSTMENT_CUES)
 
 
 def _assistant_was_talking_about_image(text: str | None) -> bool:
