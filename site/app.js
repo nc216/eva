@@ -23,6 +23,12 @@ function storageKey() {
   return `participant-chat-lab:${SESSION_CACHE_VERSION}:${participant}:${condition}`;
 }
 
+function clearStoredSessions() {
+  Object.keys(window.localStorage)
+    .filter((key) => key.startsWith("participant-chat-lab:"))
+    .forEach((key) => window.localStorage.removeItem(key));
+}
+
 function persistSessionRecovery() {
   if (!sessionRecovery) {
     return;
@@ -363,6 +369,10 @@ async function sendMessage() {
 
 async function init() {
   try {
+    if (queryValue("reset") === "1") {
+      clearStoredSessions();
+    }
+
     const config = await fetchPublicConfig();
     applyTheme(config);
 
