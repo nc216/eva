@@ -150,6 +150,13 @@ def build_image_prompt(
             "Ethnicity/race lock: the person is a white adult woman; do not change ethnicity or racial appearance between images."
         )
 
+    if image_request.get("preset") == "self_portrait":
+        parts.append(
+            "This is not a selfie and not a mirror selfie. The camera is held by another person or mounted on a tripod. "
+            "Do not show a phone, camera, selfie stick, mirror reflection, or an arm extended toward the camera. "
+            "If hands are visible, they must be empty and posed naturally."
+        )
+
     if localized_scene:
         parts.append(
             "Keep the image grounded in this same setting. Do not move the subject to a different requested location: "
@@ -181,10 +188,11 @@ def build_image_prompt(
                 f"accessory color must stay exactly {signature_outfit['accessory_color']}"
             )
         parts.append(
-            "Use the same exact outfit across self-photos in this conversation unless the user explicitly asks to change clothes. "
-            "Keep the same garment types, colors, styling, layering, and accessories rather than swapping to a different outfit: "
-            "Do not recolor the shirt, skirt, shorts, cardigan, jacket, dress, or jewelry between images. "
-            "Wardrobe lock is mandatory and overrides any general styling preference. "
+            "CRITICAL WARDROBE LOCK: use only this exact outfit and no other clothing. "
+            "Keep the same garment types, colors, styling, layering, and accessories across every self-photo. "
+            "Do not swap, recolor, add, remove, or reinterpret the shirt, top, skirt, shorts, cardigan, jacket, dress, or jewelry. "
+            "The requested pose, framing, expression, or camera angle must never change the outfit. "
+            "Wardrobe lock is mandatory and overrides every other styling preference. "
             f"{signature_outfit['prompt']}. "
             f"Color lock: {'; '.join(part for part in color_parts if 'None' not in part)}."
         )
@@ -199,6 +207,7 @@ def build_image_prompt(
         parts.append(
             "Keep the locked outfit exactly as specified. "
             "Do not improvise a new top, bottom, color palette, layer, or accessory. "
+            f"The visible clothing must match this phrase exactly: {signature_outfit['prompt']}. "
             "Make the subject look flattering, attractive, confident, softly flirtatious, and naturally photogenic without changing the wardrobe. "
             "Use tasteful sexy styling through pose, expression, lighting, posture, and camera angle rather than nudity. "
             "Favor warm eye contact, playful confidence, relaxed shoulders, flattering posture, and a slightly sultry but non-explicit mood."

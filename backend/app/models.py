@@ -51,25 +51,28 @@ class BotConfig(BaseModel):
     )
     self_image_prompt: str = (
         "Create a photorealistic portrait of a single approachable adult person looking into the camera. "
-        "Use natural skin tones, soft flattering light, a neutral background, a casual relaxed outfit with some skin showing, and a warm but realistic expression. "
+        "Use natural skin tones, soft flattering light, a neutral background, and a warm but realistic expression. "
         "Make the person look attractive, confident, stylish, softly flirtatious, and naturally photogenic without becoming explicit. "
-        "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
+        "This must look like a photo taken by another person or tripod, not a phone selfie or mirror selfie. "
+        "Do not add text, logos, multiple people, masks, helmets, phones, cameras, mirrors, selfie sticks, or surreal elements."
     )
     self_image_prompt_a: str = (
-        "Create a photorealistic image of a single approachable adult person that feels like a naturally taken self-photo. "
+        "Create a photorealistic image of a single approachable adult person that feels like a naturally taken chat photo. "
         "Use a medium shot or wider so the environment is visible, not just a head-and-shoulders crop. "
         "Place the person in a plausible everyday setting with clear contextual grounding such as a cafe in the morning, a home interior at night, a sidewalk at dusk, or another realistic location that fits the interaction. "
-        "Use soft flattering light, a warm but realistic expression, a believable candid composition, and casual non-professional clothing with more visible shoulders, arms, legs, or neckline where natural. "
+        "Use soft flattering light, a warm but realistic expression, and a believable candid composition. "
         "Make the person look attractive, confident, stylish, softly flirtatious, and naturally photogenic without becoming explicit. "
-        "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
+        "This must look like a photo taken by another person or tripod, not a phone selfie or mirror selfie. "
+        "Do not add text, logos, multiple people, masks, helmets, phones, cameras, mirrors, selfie sticks, or surreal elements."
     )
     self_image_prompt_b: str = (
         "Create a photorealistic portrait of a single approachable adult person looking into the camera. "
         "By default, keep the framing focused on the person against a plain neutral background or seamless studio backdrop with no discernable room or location cues. "
         "If the user explicitly asks for a specific setting such as a beach, use that requested setting for that image only without treating it as a persistent location. "
-        "Use soft flattering light, a warm but realistic expression, and casual non-professional clothing with some visible shoulders or neckline. "
+        "Use soft flattering light and a warm but realistic expression. "
         "Make the person look attractive, confident, stylish, softly flirtatious, and naturally photogenic without becoming explicit. "
-        "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
+        "This must look like a photo taken by another person or tripod, not a phone selfie or mirror selfie. "
+        "Do not add text, logos, multiple people, masks, helmets, phones, cameras, mirrors, selfie sticks, or surreal elements."
     )
     temperature: float = Field(default=0.7, ge=0.0, le=1.5)
     max_turns: int = Field(default=30, ge=1, le=100)

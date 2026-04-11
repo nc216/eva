@@ -110,6 +110,9 @@ class RepeatedImageTests(unittest.TestCase):
         self.assertIn("Color lock:", prompt)
         self.assertIn("Wardrobe lock is mandatory", prompt)
         self.assertIn("Do not improvise a new top", prompt)
+        self.assertIn("CRITICAL WARDROBE LOCK", prompt)
+        self.assertIn("Do not show a phone", prompt)
+        self.assertIn("not a phone selfie or mirror selfie", prompt)
 
     def test_repeat_photo_reply_uses_human_language(self) -> None:
         self.assertEqual(
@@ -170,6 +173,18 @@ class RepeatedImageTests(unittest.TestCase):
         )
         self.assertIn("Do not move the subject to a different requested location", prompt)
         self.assertNotIn("unless the user clearly asks to change it", prompt)
+
+    def test_self_image_base_prompts_do_not_compete_with_locked_outfit(self) -> None:
+        config = store.load_bot_config()
+        for prompt in (
+            config.self_image_prompt,
+            config.self_image_prompt_a,
+            config.self_image_prompt_b,
+        ):
+            self.assertNotIn("casual relaxed outfit", prompt)
+            self.assertNotIn("casual non-professional clothing", prompt)
+            self.assertIn("not a phone selfie or mirror selfie", prompt)
+            self.assertIn("phones, cameras, mirrors, selfie sticks", prompt)
 
     def test_nonlocalized_condition_allows_location_requests(self) -> None:
         session = store.create_session(study_condition="B")
