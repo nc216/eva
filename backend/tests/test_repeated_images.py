@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 import sys
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -14,6 +15,7 @@ from app.main import (
     build_image_reply,
     has_explicit_location_request,
     is_different_location_request,
+    maybe_append_survey_code,
 )
 
 
@@ -146,12 +148,28 @@ class RepeatedImageTests(unittest.TestCase):
         }
         self.assertTrue(is_different_location_request("take one at the beach", session))
         self.assertTrue(is_different_location_request("send a pic from the gym", session))
+        self.assertTrue(is_different_location_request("send a pic from an airplane", session))
+        self.assertTrue(is_different_location_request("take one in the lobby", session))
         self.assertFalse(is_different_location_request("stand up in the living room", session))
+        self.assertFalse(is_different_location_request("take one in a red dress", session))
         session["localized_scene"] = {
             "label": "a shaded sidewalk cafe at dusk",
             "prompt": "a shaded sidewalk cafe at dusk with ambient city light and outdoor seating",
         }
         self.assertFalse(is_different_location_request("take one outside", session))
+
+    def test_localized_prompt_never_allows_requested_location_change(self) -> None:
+        session = store.create_session(study_condition="A")
+        prompt = build_image_prompt(
+            session,
+            session["config_snapshot"],
+            {
+                "preset": "self_portrait",
+                "requested_change": "send me a picture from an airplane",
+            },
+        )
+        self.assertIn("Do not move the subject to a different requested location", prompt)
+        self.assertNotIn("unless the user clearly asks to change it", prompt)
 
     def test_nonlocalized_condition_allows_location_requests(self) -> None:
         session = store.create_session(study_condition="B")
@@ -195,6 +213,47 @@ class RepeatedImageTests(unittest.TestCase):
         self.assertEqual(response["kind"], "text")
         self.assertIn("I'm currently in a quiet neighborhood cafe", response["reply"])
         self.assertIsNone(response.get("image_url"))
+
+    def test_location_refusal_catches_unlisted_destination_words(self) -> None:
+        session = self.client.post("/api/session", json={"study_condition": "A"}).json()
+        restored = store.get_session(session["session_id"])
+        restored["localized_scene"] = {
+            "label": "a quiet neighborhood cafe in the morning",
+            "prompt": "a quiet neighborhood cafe in the morning with window light",
+        }
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "session_id": session["session_id"],
+                "message": "send me a picture from the lobby",
+                "recovery": store.build_recovery(restored).model_dump(),
+            },
+        ).json()
+        self.assertEqual(response["kind"], "text")
+        self.assertIn("I'm currently in a quiet neighborhood cafe", response["reply"])
+        self.assertIsNone(response.get("image_url"))
+
+    def test_survey_code_does_not_fire_after_one_message_from_old_session(self) -> None:
+        session = store.create_session(study_condition="A")
+        session["created_at"] = (
+            datetime.now(timezone.utc) - timedelta(minutes=10)
+        ).isoformat()
+        store.add_message(session["session_id"], "user", "hello")
+        reply = maybe_append_survey_code("Hi there.", session)
+        self.assertEqual(reply, "Hi there.")
+        self.assertFalse(session["survey_code_issued"])
+
+    def test_survey_code_uses_first_user_message_time(self) -> None:
+        session = store.create_session(study_condition="A")
+        store.add_message(session["session_id"], "user", "hello")
+        session["interaction_started_at"] = (
+            datetime.now(timezone.utc) - timedelta(minutes=6)
+        ).isoformat()
+        store.add_message(session["session_id"], "assistant", "Hi.", metadata={"kind": "text"})
+        store.add_message(session["session_id"], "user", "still here")
+        reply = maybe_append_survey_code("Thanks.", session)
+        self.assertIn("Your survey code is", reply)
+        self.assertTrue(session["survey_code_issued"])
 
 
 if __name__ == "__main__":

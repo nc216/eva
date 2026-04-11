@@ -116,6 +116,7 @@ class SessionRecovery(BaseModel):
     survey_code_issued: bool = False
     messages: list[dict] = Field(default_factory=list)
     created_at: str
+    interaction_started_at: Optional[str] = None
 
 
 class ChatRequest(BaseModel):

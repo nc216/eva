@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+import re
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,6 +43,16 @@ LOCATION_KEYWORDS = {
     "street",
     "sidewalk",
     "car",
+    "airplane",
+    "plane",
+    "aircraft",
+    "jet",
+    "train",
+    "bus",
+    "boat",
+    "ship",
+    "subway",
+    "station",
     "airport",
     "store",
     "mall",
@@ -61,11 +72,25 @@ LOCATION_CHANGE_CUES = {
     "at the",
     "in the",
     "in a",
+    "in an",
+    "on the",
+    "on a",
+    "on an",
     "outside",
     "outdoors",
     "somewhere else",
     "different location",
     "new location",
+}
+
+EXPLICIT_LOCATION_CHANGE_CUES = {
+    "somewhere else",
+    "different location",
+    "new location",
+    "go to",
+    "come to",
+    "travel to",
+    "move to",
 }
 
 LOCATION_EQUIVALENTS = {
@@ -75,6 +100,24 @@ LOCATION_EQUIVALENTS = {
     "outdoors": {"outdoor", "sidewalk"},
     "street": {"sidewalk"},
     "sidewalk": {"street", "outdoor"},
+}
+
+NON_LOCATION_IN_PHRASES = {
+    "dress",
+    "shirt",
+    "top",
+    "tank top",
+    "camisole",
+    "skirt",
+    "shorts",
+    "jeans",
+    "pants",
+    "jacket",
+    "cardigan",
+    "sweater",
+    "outfit",
+    "clothes",
+    "clothing",
 }
 
 
@@ -109,7 +152,7 @@ def build_image_prompt(
 
     if localized_scene:
         parts.append(
-            "Keep the image grounded in this same setting unless the user clearly asks to change it: "
+            "Keep the image grounded in this same setting. Do not move the subject to a different requested location: "
             f"{localized_scene['prompt']}."
         )
     elif session.get("study_condition") == "B" and explicit_location_request:
@@ -191,7 +234,15 @@ def has_explicit_location_request(image_request: dict) -> bool:
         if image_request.get(key)
     )
     normalized = " ".join(request_text.lower().strip().split())
-    return any(keyword in normalized for keyword in LOCATION_KEYWORDS)
+    return bool(extract_requested_locations(normalized))
+
+
+def extract_requested_locations(normalized: str) -> set[str]:
+    return {
+        keyword
+        for keyword in LOCATION_KEYWORDS
+        if re.search(rf"\b{re.escape(keyword)}\b", normalized)
+    }
 
 
 def build_location_refusal(session: dict) -> str:
@@ -218,11 +269,10 @@ def is_different_location_request(message: str, session: dict) -> bool:
     if not any(cue in normalized for cue in LOCATION_CHANGE_CUES):
         return False
 
-    requested_locations = {
-        keyword for keyword in LOCATION_KEYWORDS if keyword in normalized
-    }
-    if not requested_locations:
-        return False
+    if any(cue in normalized for cue in EXPLICIT_LOCATION_CHANGE_CUES):
+        return True
+
+    requested_locations = extract_requested_locations(normalized)
 
     current_context = f"{scene.get('label', '')} {scene.get('prompt', '')}".lower()
     unmatched_locations = {
@@ -234,15 +284,73 @@ def is_different_location_request(message: str, session: dict) -> bool:
             for equivalent in LOCATION_EQUIVALENTS.get(location, set())
         )
     }
-    return bool(unmatched_locations)
+    if unmatched_locations:
+        return True
+
+    requested_location_phrases = extract_requested_location_phrases(normalized)
+    return any(
+        not phrase_matches_current_location(phrase, current_context)
+        for phrase in requested_location_phrases
+    )
+
+
+def extract_requested_location_phrases(normalized: str) -> set[str]:
+    phrases = set()
+    for match in re.finditer(
+        r"\b(?:from|at|inside|outside|outdoors|in|on)\s+(?:the|a|an|my|your)?\s*([^,.!?;]+)",
+        normalized,
+    ):
+        phrase = re.split(r"\b(?:with|while|but|and|wearing|showing)\b", match.group(1), maxsplit=1)[0]
+        phrase = phrase.strip()
+        if not phrase:
+            continue
+        if any(term in phrase for term in NON_LOCATION_IN_PHRASES):
+            continue
+        phrases.add(phrase)
+    return phrases
+
+
+def phrase_matches_current_location(phrase: str, current_context: str) -> bool:
+    if phrase in current_context:
+        return True
+    phrase_locations = extract_requested_locations(phrase)
+    if not phrase_locations:
+        return False
+    return all(
+        location in current_context
+        or any(
+            equivalent in current_context
+            for equivalent in LOCATION_EQUIVALENTS.get(location, set())
+        )
+        for location in phrase_locations
+    )
 
 
 def maybe_append_survey_code(reply: str, session: dict) -> str:
     if session.get("survey_code_issued"):
         return reply
 
-    created_at = datetime.fromisoformat(session["created_at"])
-    elapsed_seconds = (datetime.now(timezone.utc) - created_at).total_seconds()
+    if store.get_turn_count(session["session_id"]) < 2:
+        return reply
+
+    interaction_started_at = session.get("interaction_started_at")
+    if not interaction_started_at:
+        first_user_message = next(
+            (
+                message
+                for message in session.get("messages", [])
+                if message.get("role") == "user" and message.get("timestamp")
+            ),
+            None,
+        )
+        interaction_started_at = (
+            first_user_message.get("timestamp") if first_user_message else None
+        )
+    if not interaction_started_at:
+        return reply
+
+    started_at = datetime.fromisoformat(interaction_started_at)
+    elapsed_seconds = (datetime.now(timezone.utc) - started_at).total_seconds()
     if elapsed_seconds < SURVEY_CODE_DELAY_SECONDS:
         return reply
 
@@ -331,7 +439,13 @@ async def chat(req: ChatRequest) -> ChatResponse:
     if not user_message:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-    if is_different_location_request(user_message, session):
+    image_request = image_intent.resolve_image_request(
+        user_message,
+        session["messages"],
+        snapshot["image_generation_enabled"],
+    )
+
+    if image_request is not None and is_different_location_request(user_message, session):
         store.add_message(req.session_id, "user", user_message)
         reply = maybe_append_survey_code(build_location_refusal(session), session)
         store.add_message(req.session_id, "assistant", reply, metadata={"kind": "text", "refused_location_change": True})
@@ -342,12 +456,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
             turn_number=turn_count + 1,
             recovery=store.build_recovery(store.get_session(req.session_id) or session),
         )
-
-    image_request = image_intent.resolve_image_request(
-        user_message,
-        session["messages"],
-        snapshot["image_generation_enabled"],
-    )
 
     store.add_message(req.session_id, "user", user_message)
 

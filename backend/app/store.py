@@ -277,6 +277,7 @@ def build_recovery(session: dict[str, Any]) -> SessionRecovery:
         survey_code_issued=bool(session.get("survey_code_issued")),
         messages=session.get("messages", []),
         created_at=session.get("created_at", _now_iso()),
+        interaction_started_at=session.get("interaction_started_at"),
     )
 
 
@@ -327,6 +328,7 @@ def create_session(
         "survey_code_issued": False,
         "messages": [],
         "created_at": _now_iso(),
+        "interaction_started_at": None,
     }
     _sessions[session_id] = session
     persist_transcript(session)
@@ -355,13 +357,16 @@ def add_message(
     session = get_session(session_id)
     if session is None:
         raise KeyError(f"Session {session_id} not found")
+    timestamp = _now_iso()
     message = {
         "role": role,
         "content": content,
-        "timestamp": _now_iso(),
+        "timestamp": timestamp,
     }
     if metadata:
         message["metadata"] = metadata
+    if role == "user" and not session.get("interaction_started_at"):
+        session["interaction_started_at"] = timestamp
     session["messages"].append(message)
     persist_transcript(session)
     return message
