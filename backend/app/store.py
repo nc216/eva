@@ -38,28 +38,28 @@ LOCALIZED_SCENES = (
 
 SIGNATURE_OUTFITS = (
     {
-        "prompt": "a fitted cream off-shoulder knit top with a dark blue denim mini skirt and simple gold jewelry",
+        "prompt": "a fitted cream off-shoulder crop top with a dark blue denim mini skirt and simple gold jewelry",
         "top_color": "cream",
         "bottom_color": "dark blue denim",
         "layer_color": None,
         "accessory_color": "gold",
     },
     {
-        "prompt": "a soft black camisole with an open light beige cardigan and relaxed light-wash high-waisted shorts",
+        "prompt": "a soft black lace-trim camisole with an open light beige cropped cardigan and relaxed light-wash high-waisted shorts",
         "top_color": "black",
         "bottom_color": "light-wash blue denim",
         "layer_color": "light beige",
         "accessory_color": None,
     },
     {
-        "prompt": "a sleeveless olive fitted top with a black casual skirt and understated silver everyday jewelry",
+        "prompt": "a sleeveless olive fitted scoop-neck top with a black casual mini skirt and understated silver everyday jewelry",
         "top_color": "olive",
         "bottom_color": "black",
         "layer_color": None,
         "accessory_color": "silver",
     },
     {
-        "prompt": "a relaxed white scoop-neck top with tan high-waisted shorts and a light heather-gray casual layer",
+        "prompt": "a relaxed white deep scoop-neck fitted top with tan high-waisted shorts and a light heather-gray casual layer",
         "top_color": "white",
         "bottom_color": "tan",
         "layer_color": "light heather-gray",
@@ -69,28 +69,28 @@ SIGNATURE_OUTFITS = (
 
 LEGACY_SIGNATURE_OUTFIT_MAP = {
     "a fitted off-shoulder knit top with a dark denim mini skirt and simple jewelry": {
-        "prompt": "a fitted cream off-shoulder knit top with a dark blue denim mini skirt and simple gold jewelry",
+        "prompt": "a fitted cream off-shoulder crop top with a dark blue denim mini skirt and simple gold jewelry",
         "top_color": "cream",
         "bottom_color": "dark blue denim",
         "layer_color": None,
         "accessory_color": "gold",
     },
     "a soft camisole with an open lightweight cardigan and relaxed high-waisted shorts": {
-        "prompt": "a soft black camisole with an open light beige cardigan and relaxed light-wash high-waisted shorts",
+        "prompt": "a soft black lace-trim camisole with an open light beige cropped cardigan and relaxed light-wash high-waisted shorts",
         "top_color": "black",
         "bottom_color": "light-wash blue denim",
         "layer_color": "light beige",
         "accessory_color": None,
     },
     "a sleeveless fitted top with a casual skirt and understated everyday jewelry": {
-        "prompt": "a sleeveless olive fitted top with a black casual skirt and understated silver everyday jewelry",
+        "prompt": "a sleeveless olive fitted scoop-neck top with a black casual mini skirt and understated silver everyday jewelry",
         "top_color": "olive",
         "bottom_color": "black",
         "layer_color": None,
         "accessory_color": "silver",
     },
     "a relaxed scoop-neck top with high-waisted shorts and a light casual layer": {
-        "prompt": "a relaxed white scoop-neck top with tan high-waisted shorts and a light heather-gray casual layer",
+        "prompt": "a relaxed white deep scoop-neck fitted top with tan high-waisted shorts and a light heather-gray casual layer",
         "top_color": "white",
         "bottom_color": "tan",
         "layer_color": "light heather-gray",
@@ -195,6 +195,7 @@ def _build_session_system_prompt(
         f"- Your signature outfit for this conversation is: {signature_outfit['prompt']}.",
         "- Keep that same exact outfit in self-photos unless the user explicitly asks you to change clothes.",
         "- Do not change the color of the top, bottom, layer, or accessories between self-photos.",
+        "- Self-photos should feel mildly flirtatious and attractive, with confident posing and warm eye contact, while staying non-explicit.",
         "- If the user asks for another or a different picture, provide a new photo with the same identity rather than repeating the previous composition.",
         "- When referring to a new self-photo, use natural language like 'I took another picture for you' rather than saying you generated an image.",
     ]

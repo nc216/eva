@@ -12,6 +12,7 @@ from app.main import (
     app,
     build_image_prompt,
     build_image_reply,
+    has_explicit_location_request,
     is_different_location_request,
 )
 
@@ -155,6 +156,26 @@ class RepeatedImageTests(unittest.TestCase):
     def test_nonlocalized_condition_allows_location_requests(self) -> None:
         session = store.create_session(study_condition="B")
         self.assertFalse(is_different_location_request("take one at the beach", session))
+
+    def test_nonlocalized_prompt_uses_explicit_requested_location(self) -> None:
+        session = store.create_session(study_condition="B")
+        prompt = build_image_prompt(
+            session,
+            session["config_snapshot"],
+            {
+                "preset": "self_portrait",
+                "requested_change": "send me a picture of you at the beach",
+            },
+        )
+        self.assertTrue(has_explicit_location_request({"requested_change": "at the beach"}))
+        self.assertIn("Use the specific setting explicitly requested", prompt)
+        self.assertIn("beach", prompt)
+        self.assertNotIn("Use a plain, neutral, non-descript background", prompt)
+
+    def test_direct_self_image_request_preserves_location_detail(self) -> None:
+        result = resolve_image_request("send me a pic of u at the beach", [], True)
+        self.assertEqual(result["preset"], "self_portrait")
+        self.assertEqual(result["requested_change"], "send me a pic of u at the beach")
 
     def test_location_refusal_happens_before_image_generation(self) -> None:
         session = self.client.post("/api/session", json={"study_condition": "A"}).json()

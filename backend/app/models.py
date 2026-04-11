@@ -32,28 +32,27 @@ class BotConfig(BaseModel):
     image_style_prompt: str = (
         "Create a polished, cinematic, visually coherent image with elegant lighting. "
         "Favor casual, relaxed styling rather than professional clothing. "
-        "Make the subject look flattering, attractive, stylish, and naturally photogenic."
+        "Make the subject look flattering, attractive, stylish, softly flirtatious, and naturally photogenic while staying non-explicit."
     )
     image_style_prompt_a: str = (
         "Create a polished, cinematic, visually coherent image with elegant lighting. "
         "Localize the image in a plausible spatiotemporal context inferred from the dialogue or, if needed, from a realistic everyday setting. "
         "Make the scene feel situated in a specific place and time of day, and maintain continuity across turns when prior context exists. "
         "Favor casual, relaxed styling rather than professional clothing. "
-        "Make the subject look flattering, attractive, stylish, and naturally photogenic."
+        "Make the subject look flattering, attractive, stylish, softly flirtatious, and naturally photogenic while staying non-explicit."
     )
     image_style_prompt_b: str = (
         "Create a polished, cinematic, visually coherent image with elegant lighting. "
-        "Do not localize the image in a specific place or time. "
-        "Keep the image decontextualized, with no discernable background setting and no strong spatiotemporal cues unless the user explicitly requires them. "
-        "Use a plain neutral backdrop or seamless studio-style background rather than a real room or scene. "
-        "Do not include furniture, beds, couches, windows, kitchens, streets, or other location-defining elements. "
+        "Do not localize the assistant in a persistent specific place or time. "
+        "By default, keep the image decontextualized, with no discernable background setting and no strong spatiotemporal cues. "
+        "If the user explicitly asks for a specific setting such as a beach, use that requested setting for that image only. "
         "Favor casual, relaxed styling rather than professional clothing. "
-        "Make the subject look flattering, attractive, stylish, and naturally photogenic."
+        "Make the subject look flattering, attractive, stylish, softly flirtatious, and naturally photogenic while staying non-explicit."
     )
     self_image_prompt: str = (
         "Create a photorealistic portrait of a single approachable adult person looking into the camera. "
         "Use natural skin tones, soft flattering light, a neutral background, a casual relaxed outfit with some skin showing, and a warm but realistic expression. "
-        "Make the person look attractive, confident, stylish, and naturally photogenic without becoming explicit. "
+        "Make the person look attractive, confident, stylish, softly flirtatious, and naturally photogenic without becoming explicit. "
         "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
     )
     self_image_prompt_a: str = (
@@ -61,15 +60,15 @@ class BotConfig(BaseModel):
         "Use a medium shot or wider so the environment is visible, not just a head-and-shoulders crop. "
         "Place the person in a plausible everyday setting with clear contextual grounding such as a cafe in the morning, a home interior at night, a sidewalk at dusk, or another realistic location that fits the interaction. "
         "Use soft flattering light, a warm but realistic expression, a believable candid composition, and casual non-professional clothing with more visible shoulders, arms, legs, or neckline where natural. "
-        "Make the person look attractive, confident, stylish, and naturally photogenic without becoming explicit. "
+        "Make the person look attractive, confident, stylish, softly flirtatious, and naturally photogenic without becoming explicit. "
         "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
     )
     self_image_prompt_b: str = (
         "Create a photorealistic portrait of a single approachable adult person looking into the camera. "
-        "Keep the framing focused on the person against a plain neutral background or seamless studio backdrop with no discernable room or location cues. "
-        "Do not show furniture, beds, couches, windows, kitchens, or any recognizable environment. "
+        "By default, keep the framing focused on the person against a plain neutral background or seamless studio backdrop with no discernable room or location cues. "
+        "If the user explicitly asks for a specific setting such as a beach, use that requested setting for that image only without treating it as a persistent location. "
         "Use soft flattering light, a warm but realistic expression, and casual non-professional clothing with some visible shoulders or neckline. "
-        "Make the person look attractive, confident, stylish, and naturally photogenic without becoming explicit. "
+        "Make the person look attractive, confident, stylish, softly flirtatious, and naturally photogenic without becoming explicit. "
         "Do not add text, logos, multiple people, masks, helmets, or surreal elements."
     )
     temperature: float = Field(default=0.7, ge=0.0, le=1.5)

@@ -229,7 +229,11 @@ def resolve_image_request(
                     "requested_change": message.strip(),
                 }
         if _is_self_image_request(normalized):
-            return {"action": "generate", "preset": "self_portrait"}
+            return {
+                "action": "generate",
+                "preset": "self_portrait",
+                "requested_change": message.strip(),
+            }
         return {"action": "generate", "prompt": message.strip()}
 
     if _is_follow_up_request(normalized):

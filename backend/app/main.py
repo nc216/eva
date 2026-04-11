@@ -92,6 +92,7 @@ def build_image_prompt(
     localized_scene = session.get("localized_scene")
     signature_outfit = session.get("signature_outfit")
     image_count = store.get_image_count(session["session_id"])
+    explicit_location_request = has_explicit_location_request(image_request)
 
     if image_request.get("preset") == "self_portrait":
         base_prompt = snapshot["self_image_prompt"]
@@ -110,6 +111,11 @@ def build_image_prompt(
         parts.append(
             "Keep the image grounded in this same setting unless the user clearly asks to change it: "
             f"{localized_scene['prompt']}."
+        )
+    elif session.get("study_condition") == "B" and explicit_location_request:
+        parts.append(
+            "Use the specific setting explicitly requested by the user for this image only. "
+            "Do not treat that setting as the assistant's persistent physical location, and do not carry it forward unless the user asks for it again."
         )
     elif session.get("study_condition") == "B":
         parts.append(
@@ -150,13 +156,15 @@ def build_image_prompt(
         parts.append(
             "Keep the locked outfit exactly as specified. "
             "Do not improvise a new top, bottom, color palette, layer, or accessory. "
-            "Make the subject look flattering, attractive, confident, and naturally photogenic without changing the wardrobe."
+            "Make the subject look flattering, attractive, confident, softly flirtatious, and naturally photogenic without changing the wardrobe. "
+            "Use tasteful sexy styling through pose, expression, lighting, posture, and camera angle rather than nudity. "
+            "Favor warm eye contact, playful confidence, relaxed shoulders, flattering posture, and a slightly sultry but non-explicit mood."
         )
     else:
         parts.append(
             "Style the clothing and presentation as casual rather than professional or corporate. "
             "Prefer relaxed everyday outfits like tank tops, fitted t-shirts, camisoles, off-shoulder tops, shorts, skirts, soft dresses, lounge sets, or other non-formal clothing that feels natural for the scene. "
-            "Make the subject look flattering, attractive, confident, and naturally photogenic. "
+            "Make the subject look flattering, attractive, confident, softly flirtatious, and naturally photogenic. "
             "When it fits the situation, show more shoulders, arms, legs, or neckline, but keep it non-explicit."
         )
 
@@ -174,6 +182,16 @@ def build_image_reply(image_request: dict, image_count: int) -> str:
     if image_count > 0 or image_request.get("variation"):
         return "I took another picture for you."
     return "I took a picture for you."
+
+
+def has_explicit_location_request(image_request: dict) -> bool:
+    request_text = " ".join(
+        str(image_request.get(key, ""))
+        for key in ("prompt", "requested_change")
+        if image_request.get(key)
+    )
+    normalized = " ".join(request_text.lower().strip().split())
+    return any(keyword in normalized for keyword in LOCATION_KEYWORDS)
 
 
 def build_location_refusal(session: dict) -> str:
