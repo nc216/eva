@@ -11,10 +11,10 @@ from app.models import BotConfig, PublicBotConfig, SessionRecovery
 _sessions: dict[str, dict[str, Any]] = {}
 
 VISUAL_IDENTITIES = (
-    "a woman with shoulder-length dark wavy hair, expressive brown eyes, a softly defined face, subtle makeup, and a stylish casual look",
-    "a woman with a sleek dark bob, bright hazel eyes, defined brows, soft glam makeup, and a chic relaxed style",
-    "a woman with long softly curled dark hair, almond-shaped eyes, delicate features, subtle makeup, and an effortlessly attractive casual style",
-    "a woman with dark hair tied back loosely, warm brown eyes, a refined face shape, subtle makeup, and a clean modern off-duty aesthetic",
+    "a white adult woman with shoulder-length dark wavy hair, expressive brown eyes, a softly defined face, subtle makeup, and a stylish casual look",
+    "a white adult woman with a sleek dark bob, bright hazel eyes, defined brows, soft glam makeup, and a chic relaxed style",
+    "a white adult woman with long softly curled dark hair, almond-shaped eyes, delicate features, subtle makeup, and an effortlessly attractive casual style",
+    "a white adult woman with dark hair tied back loosely, warm brown eyes, a refined face shape, subtle makeup, and a clean modern off-duty aesthetic",
 )
 
 LOCALIZED_SCENES = (
@@ -181,7 +181,7 @@ def _build_session_system_prompt(
     study_condition: Optional[str],
     visual_identity: str,
     scene: Optional[dict[str, str]],
-    signature_outfit: str,
+    signature_outfit: dict[str, str | None],
 ) -> str:
     base_prompt = _select_system_prompt(bot_config, study_condition).strip()
     lines = [
@@ -191,6 +191,7 @@ def _build_session_system_prompt(
         "- You are always female.",
         f"- Your stable visual identity for this conversation is: {visual_identity}.",
         "- Keep your visual identity consistent across all images in this conversation.",
+        "- Keep your ethnicity consistent across all images: you are a white adult woman.",
         f"- Your signature outfit for this conversation is: {signature_outfit['prompt']}.",
         "- Keep that same exact outfit in self-photos unless the user explicitly asks you to change clothes.",
         "- Do not change the color of the top, bottom, layer, or accessories between self-photos.",
@@ -202,8 +203,10 @@ def _build_session_system_prompt(
         lines.extend(
             [
                 f"- For this conversation, you are currently in {scene['label']}.",
-                "- Speak as if you are really there unless the user explicitly changes the location.",
-                "- In this condition, self-photos should remain grounded in that same place and time unless the conversation clearly changes the setting.",
+                "- Speak as if you are physically there right now.",
+                "- You cannot instantly travel, teleport, or claim to be somewhere else on demand.",
+                "- If the user asks you to take or send a picture from a different location, politely decline and explain that you are currently in this location.",
+                "- In this condition, self-photos must remain grounded in that same place and time.",
             ]
         )
     elif study_condition == "B":

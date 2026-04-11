@@ -20,6 +20,63 @@ from app.models import (
 
 SURVEY_CODE_DELAY_SECONDS = 5 * 60
 
+LOCATION_KEYWORDS = {
+    "beach",
+    "park",
+    "forest",
+    "woods",
+    "mountain",
+    "lake",
+    "restaurant",
+    "bar",
+    "club",
+    "office",
+    "gym",
+    "hotel",
+    "bedroom",
+    "bathroom",
+    "kitchen",
+    "living room",
+    "cafe",
+    "coffee shop",
+    "street",
+    "sidewalk",
+    "car",
+    "airport",
+    "store",
+    "mall",
+    "library",
+    "classroom",
+    "school",
+    "outside",
+    "outdoors",
+}
+
+LOCATION_CHANGE_CUES = {
+    "go to",
+    "come to",
+    "travel to",
+    "move to",
+    "from",
+    "at the",
+    "in the",
+    "in a",
+    "outside",
+    "outdoors",
+    "somewhere else",
+    "different location",
+    "new location",
+}
+
+LOCATION_EQUIVALENTS = {
+    "coffee shop": {"cafe"},
+    "cafe": {"coffee shop"},
+    "outside": {"outdoor", "sidewalk"},
+    "outdoors": {"outdoor", "sidewalk"},
+    "street": {"sidewalk"},
+    "sidewalk": {"street", "outdoor"},
+}
+
 
 def require_admin_token(x_admin_token: str | None) -> None:
     if not config.ADMIN_TOKEN or x_admin_token != config.ADMIN_TOKEN:
@@ -44,7 +101,10 @@ def build_image_prompt(
     parts = [base_prompt]
 
     if visual_identity:
-        parts.append(f"Keep the same person identity in every image: {visual_identity}.")
+        parts.append(
+            f"Keep the same person identity in every image: {visual_identity}. "
+            "Ethnicity/race lock: the person is a white adult woman; do not change ethnicity or racial appearance between images."
+        )
 
     if localized_scene:
         parts.append(
@@ -114,6 +174,49 @@ def build_image_reply(image_request: dict, image_count: int) -> str:
     if image_count > 0 or image_request.get("variation"):
         return "I took another picture for you."
     return "I took a picture for you."
+
+
+def build_location_refusal(session: dict) -> str:
+    scene = session.get("localized_scene") or {}
+    label = scene.get("label", "my current location")
+    return (
+        f"I can't take that from a different location right now. I'm currently in {label}, "
+        "so I can only take pictures from here unless the conversation naturally moves somewhere else."
+    )
+
+
+def is_different_location_request(message: str, session: dict) -> bool:
+    if session.get("study_condition") != "A":
+        return False
+
+    scene = session.get("localized_scene")
+    if not scene:
+        return False
+
+    normalized = " ".join(message.lower().strip().split())
+    if not normalized:
+        return False
+
+    if not any(cue in normalized for cue in LOCATION_CHANGE_CUES):
+        return False
+
+    requested_locations = {
+        keyword for keyword in LOCATION_KEYWORDS if keyword in normalized
+    }
+    if not requested_locations:
+        return False
+
+    current_context = f"{scene.get('label', '')} {scene.get('prompt', '')}".lower()
+    unmatched_locations = {
+        location
+        for location in requested_locations
+        if location not in current_context
+        and not any(
+            equivalent in current_context
+            for equivalent in LOCATION_EQUIVALENTS.get(location, set())
+        )
+    }
+    return bool(unmatched_locations)
 
 
 def maybe_append_survey_code(reply: str, session: dict) -> str:
@@ -209,6 +312,18 @@ async def chat(req: ChatRequest) -> ChatResponse:
     user_message = req.message.strip()
     if not user_message:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    if is_different_location_request(user_message, session):
+        store.add_message(req.session_id, "user", user_message)
+        reply = maybe_append_survey_code(build_location_refusal(session), session)
+        store.add_message(req.session_id, "assistant", reply, metadata={"kind": "text", "refused_location_change": True})
+        return ChatResponse(
+            session_id=req.session_id,
+            kind="text",
+            reply=reply,
+            turn_number=turn_count + 1,
+            recovery=store.build_recovery(store.get_session(req.session_id) or session),
+        )
 
     image_request = image_intent.resolve_image_request(
         user_message,

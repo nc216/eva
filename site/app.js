@@ -9,6 +9,7 @@ const turnStatus = document.getElementById("turn-status");
 const botNameEl = document.getElementById("bot-name");
 const avatarLabelEl = document.getElementById("avatar-label");
 
+const SESSION_CACHE_VERSION = "v3-white-localized-location";
 let sessionId = null;
 let turnCount = 0;
 let maxTurns = 0;
@@ -19,7 +20,7 @@ let sessionRecovery = null;
 function storageKey() {
   const participant = queryValue("participant") || "anon";
   const condition = queryValue("condition") || queryValue("cond") || "none";
-  return `participant-chat-lab:${participant}:${condition}`;
+  return `participant-chat-lab:${SESSION_CACHE_VERSION}:${participant}:${condition}`;
 }
 
 function persistSessionRecovery() {

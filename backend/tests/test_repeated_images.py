@@ -8,7 +8,12 @@ from fastapi.testclient import TestClient
 
 from app import openai_client, store
 from app.image_intent import resolve_image_request
-from app.main import app, build_image_prompt, build_image_reply
+from app.main import (
+    app,
+    build_image_prompt,
+    build_image_reply,
+    is_different_location_request,
+)
 
 
 class RepeatedImageTests(unittest.TestCase):
@@ -120,6 +125,55 @@ class RepeatedImageTests(unittest.TestCase):
         self.assertEqual(upgraded["top_color"], "olive")
         self.assertEqual(upgraded["bottom_color"], "black")
         self.assertEqual(upgraded["accessory_color"], "silver")
+
+    def test_visual_identity_is_locked_to_white_adult_woman(self) -> None:
+        session = store.create_session(study_condition="A")
+        self.assertIn("white adult woman", session["visual_identity"])
+        prompt = build_image_prompt(
+            session,
+            session["config_snapshot"],
+            {"preset": "self_portrait"},
+        )
+        self.assertIn("white adult woman", prompt)
+        self.assertIn("Ethnicity/race lock", prompt)
+
+    def test_localized_condition_rejects_different_location_requests(self) -> None:
+        session = store.create_session(study_condition="A")
+        session["localized_scene"] = {
+            "label": "a warm apartment living room at night",
+            "prompt": "a warm apartment living room at night with lamplight and a sofa",
+        }
+        self.assertTrue(is_different_location_request("take one at the beach", session))
+        self.assertTrue(is_different_location_request("send a pic from the gym", session))
+        self.assertFalse(is_different_location_request("stand up in the living room", session))
+        session["localized_scene"] = {
+            "label": "a shaded sidewalk cafe at dusk",
+            "prompt": "a shaded sidewalk cafe at dusk with ambient city light and outdoor seating",
+        }
+        self.assertFalse(is_different_location_request("take one outside", session))
+
+    def test_nonlocalized_condition_allows_location_requests(self) -> None:
+        session = store.create_session(study_condition="B")
+        self.assertFalse(is_different_location_request("take one at the beach", session))
+
+    def test_location_refusal_happens_before_image_generation(self) -> None:
+        session = self.client.post("/api/session", json={"study_condition": "A"}).json()
+        restored = store.get_session(session["session_id"])
+        restored["localized_scene"] = {
+            "label": "a quiet neighborhood cafe in the morning",
+            "prompt": "a quiet neighborhood cafe in the morning with window light",
+        }
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "session_id": session["session_id"],
+                "message": "send me a picture from the beach",
+                "recovery": store.build_recovery(restored).model_dump(),
+            },
+        ).json()
+        self.assertEqual(response["kind"], "text")
+        self.assertIn("I'm currently in a quiet neighborhood cafe", response["reply"])
+        self.assertIsNone(response.get("image_url"))
 
 
 if __name__ == "__main__":
