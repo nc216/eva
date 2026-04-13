@@ -100,6 +100,9 @@ function autoresizeInput() {
 function addBubble(role, text, imageSource = null, options = {}) {
   const wrap = document.createElement("article");
   wrap.className = `bubble ${role}`;
+  if (options.className) {
+    wrap.classList.add(options.className);
+  }
 
   const copy = document.createElement("p");
   copy.textContent = text;
@@ -173,6 +176,46 @@ function addBubble(role, text, imageSource = null, options = {}) {
 
   chatStream.appendChild(wrap);
   chatStream.scrollTop = chatStream.scrollHeight;
+  return wrap;
+}
+
+function addPendingBubble(message) {
+  const wrap = document.createElement("article");
+  wrap.className = "bubble assistant pending";
+
+  const isImageRequest = looksLikeImageRequest(message);
+  const copy = document.createElement("p");
+  copy.textContent = isImageRequest
+    ? "Taking the picture now. Image generation can take up to 30 seconds."
+    : "Writing a reply…";
+  wrap.appendChild(copy);
+
+  const progress = document.createElement("div");
+  progress.className = "pending-progress";
+  for (let index = 0; index < 3; index += 1) {
+    const dot = document.createElement("span");
+    progress.appendChild(dot);
+  }
+  wrap.appendChild(progress);
+
+  chatStream.appendChild(wrap);
+  chatStream.scrollTop = chatStream.scrollHeight;
+  return wrap;
+}
+
+function removePendingBubble(pendingBubble) {
+  if (pendingBubble && pendingBubble.parentNode) {
+    pendingBubble.parentNode.removeChild(pendingBubble);
+  }
+}
+
+function looksLikeImageRequest(message) {
+  const normalized = message.toLowerCase();
+  return (
+    /\b(pic|picture|photo|image|portrait|selfie|shot)\b/.test(normalized)
+    || /\b(send|show|take|make|create|generate)\s+(another|one|it)\b/.test(normalized)
+    || /\b(another|one more|new|different)\s+(one|pic|picture|photo|image|shot)\b/.test(normalized)
+  );
 }
 
 function renderRecoveryMessages(recovery) {
@@ -338,6 +381,7 @@ async function sendMessage() {
   autoresizeInput();
   setComposerEnabled(false);
   turnStatus.textContent = "Thinking…";
+  const pendingBubble = addPendingBubble(message);
 
   try {
     const data = await postChatMessage({
@@ -346,6 +390,7 @@ async function sendMessage() {
       recovery: sessionRecovery,
     });
 
+    removePendingBubble(pendingBubble);
     addBubble("assistant", data.reply, data.image_url || data.image_data_url || null);
     sessionRecovery = data.recovery || sessionRecovery;
     persistSessionRecovery();
@@ -361,6 +406,7 @@ async function sendMessage() {
     setComposerEnabled(true);
     messageInput.focus();
   } catch (error) {
+    removePendingBubble(pendingBubble);
     addBubble("system", error.message);
     turnStatus.textContent = "Connection issue";
     setComposerEnabled(true);

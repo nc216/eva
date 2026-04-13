@@ -102,6 +102,17 @@ LOCATION_EQUIVALENTS = {
     "sidewalk": {"street", "outdoor"},
 }
 
+IMAGE_REQUEST_HINTS = {
+    "pic",
+    "picture",
+    "photo",
+    "image",
+    "portrait",
+    "selfie",
+    "shot",
+    "visual",
+}
+
 NON_LOCATION_IN_PHRASES = {
     "dress",
     "shirt",
@@ -118,6 +129,11 @@ NON_LOCATION_IN_PHRASES = {
     "outfit",
     "clothes",
     "clothing",
+    "profile",
+    "pose",
+    "angle",
+    "frame",
+    "framing",
 }
 
 
@@ -275,7 +291,8 @@ def is_different_location_request(message: str, session: dict) -> bool:
     if not normalized:
         return False
 
-    if not any(cue in normalized for cue in LOCATION_CHANGE_CUES):
+    requested_location_phrases = extract_requested_location_phrases(normalized)
+    if not any(cue in normalized for cue in LOCATION_CHANGE_CUES) and not requested_location_phrases:
         return False
 
     if any(cue in normalized for cue in EXPLICIT_LOCATION_CHANGE_CUES):
@@ -296,10 +313,45 @@ def is_different_location_request(message: str, session: dict) -> bool:
     if unmatched_locations:
         return True
 
-    requested_location_phrases = extract_requested_location_phrases(normalized)
     return any(
         not phrase_matches_current_location(phrase, current_context)
         for phrase in requested_location_phrases
+    )
+
+
+def localized_location_refusal_required(
+    message: str,
+    session: dict,
+    image_request: dict | None = None,
+) -> bool:
+    if session.get("study_condition") != "A":
+        return False
+
+    texts = [message]
+    if image_request is not None:
+        texts.extend(
+            str(image_request.get(key, ""))
+            for key in ("prompt", "requested_change")
+            if image_request.get(key)
+        )
+
+    if not any(is_different_location_request(text, session) for text in texts):
+        return False
+
+    return image_request is not None or looks_like_image_request_text(message)
+
+
+def looks_like_image_request_text(message: str) -> bool:
+    normalized = " ".join(message.lower().strip().split())
+    if any(re.search(rf"\b{re.escape(hint)}\b", normalized) for hint in IMAGE_REQUEST_HINTS):
+        return True
+
+    return bool(
+        re.search(
+            r"\b(?:send|show|take|get|see|view|share|give)\s+(?:me\s+)?(?:another\s+|a\s+|an\s+|one\s+|it\b)",
+            normalized,
+        )
+        or re.search(r"\b(?:another|different|new|one more)\s+(?:one|shot)\b", normalized)
     )
 
 
@@ -454,7 +506,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
         snapshot["image_generation_enabled"],
     )
 
-    if image_request is not None and is_different_location_request(user_message, session):
+    if localized_location_refusal_required(user_message, session, image_request):
         store.add_message(req.session_id, "user", user_message)
         reply = maybe_append_survey_code(build_location_refusal(session), session)
         store.add_message(req.session_id, "assistant", reply, metadata={"kind": "text", "refused_location_change": True})
@@ -485,6 +537,16 @@ async def chat(req: ChatRequest) -> ChatResponse:
         snapshot["image_generation_enabled"],
     )
     if fallback_image_request is not None:
+        if localized_location_refusal_required(user_message, session, fallback_image_request):
+            reply = maybe_append_survey_code(build_location_refusal(session), session)
+            store.add_message(req.session_id, "assistant", reply, metadata={"kind": "text", "refused_location_change": True})
+            return ChatResponse(
+                session_id=req.session_id,
+                kind="text",
+                reply=reply,
+                turn_number=turn_count + 1,
+                recovery=store.build_recovery(store.get_session(req.session_id) or session),
+            )
         return await _respond_with_image(
             req.session_id,
             session,
@@ -511,6 +573,26 @@ async def _respond_with_image(
     image_request: dict,
     turn_count: int,
 ) -> ChatResponse:
+    image_request_text = " ".join(
+        str(image_request.get(key, ""))
+        for key in ("prompt", "requested_change")
+        if image_request.get(key)
+    )
+    if image_request_text and localized_location_refusal_required(
+        image_request_text,
+        session,
+        image_request,
+    ):
+        reply = maybe_append_survey_code(build_location_refusal(session), session)
+        store.add_message(session_id, "assistant", reply, metadata={"kind": "text", "refused_location_change": True})
+        return ChatResponse(
+            session_id=session_id,
+            kind="text",
+            reply=reply,
+            turn_number=turn_count + 1,
+            recovery=store.build_recovery(store.get_session(session_id) or session),
+        )
+
     if image_request["action"] == "resend":
         last_image_message = store.get_last_generated_image_message(session_id)
         if last_image_message is not None:

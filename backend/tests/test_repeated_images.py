@@ -153,6 +153,8 @@ class RepeatedImageTests(unittest.TestCase):
         self.assertTrue(is_different_location_request("send a pic from the gym", session))
         self.assertTrue(is_different_location_request("send a pic from an airplane", session))
         self.assertTrue(is_different_location_request("take one in the lobby", session))
+        self.assertTrue(is_different_location_request("send me a pic in Paris", session))
+        self.assertTrue(is_different_location_request("take a photo somewhere else", session))
         self.assertFalse(is_different_location_request("stand up in the living room", session))
         self.assertFalse(is_different_location_request("take one in a red dress", session))
         session["localized_scene"] = {
@@ -241,6 +243,73 @@ class RepeatedImageTests(unittest.TestCase):
             json={
                 "session_id": session["session_id"],
                 "message": "send me a picture from the lobby",
+                "recovery": store.build_recovery(restored).model_dump(),
+            },
+        ).json()
+        self.assertEqual(response["kind"], "text")
+        self.assertIn("I'm currently in a quiet neighborhood cafe", response["reply"])
+        self.assertIsNone(response.get("image_url"))
+
+    def test_location_refusal_catches_indirect_image_language(self) -> None:
+        session = self.client.post("/api/session", json={"study_condition": "A"}).json()
+        restored = store.get_session(session["session_id"])
+        restored["localized_scene"] = {
+            "label": "a quiet neighborhood cafe in the morning",
+            "prompt": "a quiet neighborhood cafe in the morning with window light",
+        }
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "session_id": session["session_id"],
+                "message": "could I see one from the beach",
+                "recovery": store.build_recovery(restored).model_dump(),
+            },
+        ).json()
+        self.assertEqual(response["kind"], "text")
+        self.assertIn("I'm currently in a quiet neighborhood cafe", response["reply"])
+        self.assertIsNone(response.get("image_url"))
+
+    def test_location_refusal_catches_in_location_without_article(self) -> None:
+        session = self.client.post("/api/session", json={"study_condition": "A"}).json()
+        restored = store.get_session(session["session_id"])
+        restored["localized_scene"] = {
+            "label": "a quiet neighborhood cafe in the morning",
+            "prompt": "a quiet neighborhood cafe in the morning with window light",
+        }
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "session_id": session["session_id"],
+                "message": "send me a picture in Paris",
+                "recovery": store.build_recovery(restored).model_dump(),
+            },
+        ).json()
+        self.assertEqual(response["kind"], "text")
+        self.assertIn("I'm currently in a quiet neighborhood cafe", response["reply"])
+        self.assertIsNone(response.get("image_url"))
+
+    def test_location_refusal_blocks_fallback_image_generation(self) -> None:
+        session = self.client.post("/api/session", json={"study_condition": "A"}).json()
+        restored = store.get_session(session["session_id"])
+        restored["localized_scene"] = {
+            "label": "a quiet neighborhood cafe in the morning",
+            "prompt": "a quiet neighborhood cafe in the morning with window light",
+        }
+        store.add_message(
+            session["session_id"],
+            "assistant",
+            "I took a picture for you.",
+            metadata={
+                "kind": "image",
+                "preset": "self_portrait",
+                "image_url": "/generated-images/test.png",
+            },
+        )
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "session_id": session["session_id"],
+                "message": "please do that from the beach",
                 "recovery": store.build_recovery(restored).model_dump(),
             },
         ).json()
