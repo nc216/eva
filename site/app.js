@@ -179,16 +179,9 @@ function addBubble(role, text, imageSource = null, options = {}) {
   return wrap;
 }
 
-function addPendingBubble(message) {
+function addPendingBubble() {
   const wrap = document.createElement("article");
   wrap.className = "bubble assistant pending";
-
-  const isImageRequest = looksLikeImageRequest(message);
-  const copy = document.createElement("p");
-  copy.textContent = isImageRequest
-    ? "Taking the picture now. Image generation can take up to 30 seconds."
-    : "Writing a reply…";
-  wrap.appendChild(copy);
 
   const progress = document.createElement("div");
   progress.className = "pending-progress";
@@ -207,15 +200,6 @@ function removePendingBubble(pendingBubble) {
   if (pendingBubble && pendingBubble.parentNode) {
     pendingBubble.parentNode.removeChild(pendingBubble);
   }
-}
-
-function looksLikeImageRequest(message) {
-  const normalized = message.toLowerCase();
-  return (
-    /\b(pic|picture|photo|image|portrait|selfie|shot)\b/.test(normalized)
-    || /\b(send|show|take|make|create|generate)\s+(another|one|it)\b/.test(normalized)
-    || /\b(another|one more|new|different)\s+(one|pic|picture|photo|image|shot)\b/.test(normalized)
-  );
 }
 
 function renderRecoveryMessages(recovery) {
@@ -381,7 +365,7 @@ async function sendMessage() {
   autoresizeInput();
   setComposerEnabled(false);
   turnStatus.textContent = "Thinking…";
-  const pendingBubble = addPendingBubble(message);
+  const pendingBubble = addPendingBubble();
 
   try {
     const data = await postChatMessage({

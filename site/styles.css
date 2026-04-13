@@ -347,7 +347,9 @@ h1,
 .pending-progress {
   display: flex;
   gap: 0.35rem;
-  margin-top: 0.8rem;
+  align-items: center;
+  min-width: 2.1rem;
+  min-height: 1rem;
 }
 
 .pending-progress span {
