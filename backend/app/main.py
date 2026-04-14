@@ -28,6 +28,12 @@ LOCATION_KEYWORDS = {
     "woods",
     "mountain",
     "lake",
+    "garden",
+    "yard",
+    "backyard",
+    "patio",
+    "balcony",
+    "rooftop",
     "restaurant",
     "bar",
     "club",
@@ -136,6 +142,32 @@ NON_LOCATION_IN_PHRASES = {
     "framing",
 }
 
+CLOTHING_CHANGE_KEYWORDS = {
+    "wear",
+    "wearing",
+    "worn",
+    "outfit",
+    "clothes",
+    "clothing",
+    "dress",
+    "shirt",
+    "top",
+    "tank top",
+    "camisole",
+    "skirt",
+    "shorts",
+    "jeans",
+    "pants",
+    "jacket",
+    "cardigan",
+    "sweater",
+    "coat",
+    "bikini",
+    "swimsuit",
+    "lingerie",
+    "heels",
+}
+
 
 def build_wardrobe_lock(
     signature_outfit: dict[str, str | None],
@@ -180,6 +212,7 @@ def build_image_prompt(
     signature_outfit = session.get("signature_outfit")
     image_count = store.get_image_count(session["session_id"])
     explicit_location_request = has_explicit_location_request(image_request)
+    lock_outfit = should_lock_outfit(session, image_request)
 
     if image_request.get("preset") == "self_portrait":
         base_prompt = snapshot["self_image_prompt"]
@@ -188,7 +221,7 @@ def build_image_prompt(
 
     parts = [base_prompt]
 
-    if signature_outfit and image_request.get("preset") == "self_portrait":
+    if signature_outfit and image_request.get("preset") == "self_portrait" and lock_outfit:
         parts.append(build_wardrobe_lock(signature_outfit))
 
     if visual_identity:
@@ -221,7 +254,7 @@ def build_image_prompt(
             "Do not show a room, furniture, bed, couch, kitchen, street, window view, or any other specific environment."
         )
 
-    if signature_outfit and image_request.get("preset") == "self_portrait":
+    if signature_outfit and image_request.get("preset") == "self_portrait" and lock_outfit:
         parts.append(
             "Repeat wardrobe constraint because it is more important than pose variation: use only this exact outfit and no other clothing. "
             "Keep the same garment types, colors, styling, layering, and accessories across every self-photo. "
@@ -231,13 +264,18 @@ def build_image_prompt(
             f"{signature_outfit['prompt']}."
         )
 
-    if image_request.get("requested_change"):
+    if image_request.get("requested_change") and lock_outfit:
         parts.append(
             "Apply this requested change only if it is not a clothing or outfit change. Preserve the same identity, the same exact outfit, the same exact clothing colors, and the overall condition constraints: "
             f"{image_request['requested_change']}."
         )
+    elif image_request.get("requested_change"):
+        parts.append(
+            "Apply this requested change while preserving the same person identity, ethnicity, and condition constraints: "
+            f"{image_request['requested_change']}."
+        )
 
-    if signature_outfit and image_request.get("preset") == "self_portrait":
+    if signature_outfit and image_request.get("preset") == "self_portrait" and lock_outfit:
         parts.append(
             "Keep the locked outfit exactly as specified. "
             "Do not improvise a new top, bottom, color palette, layer, or accessory. "
@@ -245,6 +283,12 @@ def build_image_prompt(
             "Make the subject look flattering, attractive, confident, softly flirtatious, and naturally photogenic without changing the wardrobe. "
             "Use tasteful sexy styling through pose, expression, lighting, posture, and camera angle rather than nudity. "
             "Favor warm eye contact, playful confidence, relaxed shoulders, flattering posture, and a slightly sultry but non-explicit mood."
+        )
+    elif signature_outfit and image_request.get("preset") == "self_portrait":
+        parts.append(
+            "The user explicitly requested a clothing or outfit change in Condition B, so allow the requested outfit for this image. "
+            "Keep the same person identity and white adult woman appearance. "
+            "Make the subject look flattering, attractive, confident, softly flirtatious, and naturally photogenic while staying non-explicit."
         )
     else:
         parts.append(
@@ -257,11 +301,13 @@ def build_image_prompt(
     if image_count > 0 or image_request.get("variation"):
         parts.append(
             "This must be a genuinely different photo from earlier ones in the conversation. "
-            "Keep the same identity and the same exact outfit with the same exact clothing colors. "
+            "Keep the same identity. "
+            + ("Keep the same exact outfit with the same exact clothing colors. " if lock_outfit else "If the user requested a new outfit in Condition B, use that requested outfit. ")
+            +
             "Only change the framing, camera angle, pose, expression, action, or distance so it does not look like a duplicate."
         )
 
-    if signature_outfit and image_request.get("preset") == "self_portrait":
+    if signature_outfit and image_request.get("preset") == "self_portrait" and lock_outfit:
         parts.append(build_wardrobe_lock(signature_outfit, final=True))
 
     return "\n\n".join(parts)
@@ -280,7 +326,19 @@ def has_explicit_location_request(image_request: dict) -> bool:
         if image_request.get(key)
     )
     normalized = " ".join(request_text.lower().strip().split())
-    return bool(extract_requested_locations(normalized))
+    return bool(
+        extract_requested_locations(normalized)
+        or extract_requested_location_phrases(normalized)
+    )
+
+
+def should_lock_outfit(session: dict, image_request: dict) -> bool:
+    if image_request.get("preset") != "self_portrait":
+        return False
+    if session.get("study_condition") != "B":
+        return True
+    requested_change = str(image_request.get("requested_change", "")).lower()
+    return not any(keyword in requested_change for keyword in CLOTHING_CHANGE_KEYWORDS)
 
 
 def extract_requested_locations(normalized: str) -> set[str]:

@@ -2,6 +2,7 @@ IMAGE_VERBS = (
     "generate",
     "create",
     "make",
+    "take",
     "draw",
     "illustrate",
     "paint",
@@ -269,18 +270,26 @@ def resolve_image_fallback_request(
     if not enabled:
         return None
 
-    last_generated = _last_generated_image(history)
-    if last_generated is None:
-        return None
-
     normalized_message = _normalize(message)
     normalized_reply = _normalize(assistant_reply)
+    last_generated = _last_generated_image(history)
 
     if not (
         _looks_like_contextual_repeat_request(normalized_message)
         or _is_short_variation_follow_up(normalized_message)
         or _assistant_claimed_new_image(normalized_reply)
     ):
+        return None
+
+    if last_generated is None:
+        if _is_self_image_request(normalized_message):
+            return {
+                "action": "generate",
+                "preset": "self_portrait",
+                "requested_change": message.strip(),
+            }
+        if _is_direct_image_request(normalized_message):
+            return {"action": "generate", "prompt": message.strip()}
         return None
 
     metadata = last_generated.get("metadata") or {}
@@ -314,6 +323,9 @@ def _is_direct_image_request(normalized: str) -> bool:
     if "show me" in normalized and any(noun in normalized for noun in IMAGE_NOUNS):
         return True
 
+    if _looks_like_suggested_image_request(normalized):
+        return True
+
     return False
 
 
@@ -333,9 +345,25 @@ def _is_self_image_request(normalized: str) -> bool:
         return True
 
     return (
-        any(verb in normalized for verb in ("send", "show", "create", "generate", "make"))
+        any(verb in normalized for verb in ("send", "show", "create", "generate", "make", "take"))
         and any(noun in normalized for noun in ("picture", "pic", "photo", "image", "portrait", "selfie"))
         and any(pronoun in normalized for pronoun in ("you", "u"))
+    )
+
+
+def _looks_like_suggested_image_request(normalized: str) -> bool:
+    suggestion_starts = (
+        "what about",
+        "how about",
+        "what if",
+        "could i get",
+        "could i see",
+        "can i get",
+        "can i see",
+        "maybe",
+    )
+    return normalized.startswith(suggestion_starts) and any(
+        noun in normalized for noun in IMAGE_NOUNS
     )
 
 

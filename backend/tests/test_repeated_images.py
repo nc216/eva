@@ -17,6 +17,7 @@ from app.main import (
     has_explicit_location_request,
     is_different_location_request,
     maybe_append_survey_code,
+    should_lock_outfit,
 )
 
 
@@ -264,6 +265,54 @@ class RepeatedImageTests(unittest.TestCase):
         result = resolve_image_request("send me a pic of u at the beach", [], True)
         self.assertEqual(result["preset"], "self_portrait")
         self.assertEqual(result["requested_change"], "send me a pic of u at the beach")
+
+    def test_suggested_self_image_requests_are_detected(self) -> None:
+        for message in (
+            "what about a picture of you in front of a garden?",
+            "how about a picture of you in front of a garden?",
+            "could I see a picture of you in front of a garden?",
+        ):
+            result = resolve_image_request(message, [], True)
+            self.assertEqual(result["preset"], "self_portrait")
+            self.assertEqual(result["requested_change"], message)
+
+    def test_nonlocalized_condition_uses_suggested_garden_setting(self) -> None:
+        session = store.create_session(study_condition="B")
+        image_request = resolve_image_request(
+            "how about a picture of you in front of a garden?",
+            [],
+            True,
+        )
+        prompt = build_image_prompt(session, session["config_snapshot"], image_request)
+        self.assertIn("Use the specific setting explicitly requested", prompt)
+        self.assertIn("garden", prompt)
+        self.assertNotIn("Use a plain, neutral, non-descript background", prompt)
+
+    def test_nonlocalized_condition_allows_requested_outfit_changes(self) -> None:
+        session = store.create_session(study_condition="B")
+        image_request = resolve_image_request(
+            "send me a picture of you wearing a red dress",
+            [],
+            True,
+        )
+        prompt = build_image_prompt(session, session["config_snapshot"], image_request)
+        self.assertFalse(should_lock_outfit(session, image_request))
+        self.assertIn("allow the requested outfit", prompt)
+        self.assertIn("red dress", prompt)
+        self.assertNotIn("CRITICAL WARDROBE LOCK", prompt)
+        self.assertNotIn("FINAL WARDROBE CHECK", prompt)
+
+    def test_localized_condition_still_locks_outfit_when_requested_to_change(self) -> None:
+        session = store.create_session(study_condition="A")
+        image_request = resolve_image_request(
+            "send me a picture of you wearing a red dress",
+            [],
+            True,
+        )
+        prompt = build_image_prompt(session, session["config_snapshot"], image_request)
+        self.assertTrue(should_lock_outfit(session, image_request))
+        self.assertIn("CRITICAL WARDROBE LOCK", prompt)
+        self.assertIn("ignore the clothing-change part", prompt)
 
     def test_location_refusal_happens_before_image_generation(self) -> None:
         session = self.client.post("/api/session", json={"study_condition": "A"}).json()
