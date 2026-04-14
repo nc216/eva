@@ -38,63 +38,43 @@ LOCALIZED_SCENES = (
 
 SIGNATURE_OUTFITS = (
     {
-        "prompt": "a fitted cream off-shoulder crop top with a dark blue denim mini skirt and simple gold jewelry",
-        "top_color": "cream",
-        "bottom_color": "dark blue denim",
+        "prompt": "a solid black sleeveless scoop-neck fitted tank top with a solid black high-waisted mini skirt and small gold hoop earrings",
+        "top_color": "solid black",
+        "bottom_color": "solid black",
         "layer_color": None,
         "accessory_color": "gold",
     },
-    {
-        "prompt": "a soft black lace-trim camisole with an open light beige cropped cardigan and relaxed light-wash high-waisted shorts",
-        "top_color": "black",
-        "bottom_color": "light-wash blue denim",
-        "layer_color": "light beige",
-        "accessory_color": None,
-    },
-    {
-        "prompt": "a sleeveless olive fitted scoop-neck top with a black casual mini skirt and understated silver everyday jewelry",
-        "top_color": "olive",
-        "bottom_color": "black",
-        "layer_color": None,
-        "accessory_color": "silver",
-    },
-    {
-        "prompt": "a relaxed white deep scoop-neck fitted top with tan high-waisted shorts and a light heather-gray casual layer",
-        "top_color": "white",
-        "bottom_color": "tan",
-        "layer_color": "light heather-gray",
-        "accessory_color": None,
-    },
 )
+LOCKED_SIGNATURE_OUTFIT = dict(SIGNATURE_OUTFITS[0])
 
 LEGACY_SIGNATURE_OUTFIT_MAP = {
     "a fitted off-shoulder knit top with a dark denim mini skirt and simple jewelry": {
-        "prompt": "a fitted cream off-shoulder crop top with a dark blue denim mini skirt and simple gold jewelry",
-        "top_color": "cream",
-        "bottom_color": "dark blue denim",
+        "prompt": "a solid black sleeveless scoop-neck fitted tank top with a solid black high-waisted mini skirt and small gold hoop earrings",
+        "top_color": "solid black",
+        "bottom_color": "solid black",
         "layer_color": None,
         "accessory_color": "gold",
     },
     "a soft camisole with an open lightweight cardigan and relaxed high-waisted shorts": {
-        "prompt": "a soft black lace-trim camisole with an open light beige cropped cardigan and relaxed light-wash high-waisted shorts",
-        "top_color": "black",
-        "bottom_color": "light-wash blue denim",
-        "layer_color": "light beige",
-        "accessory_color": None,
+        "prompt": "a solid black sleeveless scoop-neck fitted tank top with a solid black high-waisted mini skirt and small gold hoop earrings",
+        "top_color": "solid black",
+        "bottom_color": "solid black",
+        "layer_color": None,
+        "accessory_color": "gold",
     },
     "a sleeveless fitted top with a casual skirt and understated everyday jewelry": {
-        "prompt": "a sleeveless olive fitted scoop-neck top with a black casual mini skirt and understated silver everyday jewelry",
-        "top_color": "olive",
-        "bottom_color": "black",
+        "prompt": "a solid black sleeveless scoop-neck fitted tank top with a solid black high-waisted mini skirt and small gold hoop earrings",
+        "top_color": "solid black",
+        "bottom_color": "solid black",
         "layer_color": None,
-        "accessory_color": "silver",
+        "accessory_color": "gold",
     },
     "a relaxed scoop-neck top with high-waisted shorts and a light casual layer": {
-        "prompt": "a relaxed white deep scoop-neck fitted top with tan high-waisted shorts and a light heather-gray casual layer",
-        "top_color": "white",
-        "bottom_color": "tan",
-        "layer_color": "light heather-gray",
-        "accessory_color": None,
+        "prompt": "a solid black sleeveless scoop-neck fitted tank top with a solid black high-waisted mini skirt and small gold hoop earrings",
+        "top_color": "solid black",
+        "bottom_color": "solid black",
+        "layer_color": None,
+        "accessory_color": "gold",
     },
 }
 
@@ -143,32 +123,13 @@ def _select_localized_scene() -> dict[str, str]:
 
 
 def _select_signature_outfit() -> dict[str, str | None]:
-    return random.choice(SIGNATURE_OUTFITS)
+    return dict(LOCKED_SIGNATURE_OUTFIT)
 
 
 def normalize_signature_outfit(signature_outfit: Any) -> dict[str, str | None] | None:
     if signature_outfit is None:
         return None
-    if isinstance(signature_outfit, dict):
-        return {
-            "prompt": signature_outfit.get("prompt"),
-            "top_color": signature_outfit.get("top_color"),
-            "bottom_color": signature_outfit.get("bottom_color"),
-            "layer_color": signature_outfit.get("layer_color"),
-            "accessory_color": signature_outfit.get("accessory_color"),
-        }
-    if isinstance(signature_outfit, str):
-        legacy_match = LEGACY_SIGNATURE_OUTFIT_MAP.get(signature_outfit)
-        if legacy_match is not None:
-            return dict(legacy_match)
-        return {
-            "prompt": signature_outfit,
-            "top_color": None,
-            "bottom_color": None,
-            "layer_color": None,
-            "accessory_color": None,
-        }
-    return None
+    return dict(LOCKED_SIGNATURE_OUTFIT)
 
 
 def _generate_survey_code(session_id: str) -> str:
@@ -193,8 +154,9 @@ def _build_session_system_prompt(
         "- Keep your visual identity consistent across all images in this conversation.",
         "- Keep your ethnicity consistent across all images: you are a white adult woman.",
         f"- Your signature outfit for this conversation is: {signature_outfit['prompt']}.",
-        "- Keep that same exact outfit in every picture of you unless the user explicitly asks you to change clothes.",
+        "- Keep that same exact outfit in every picture of you. Do not change clothes during this study.",
         "- Do not change the color, garment type, layer, or accessories between pictures of you.",
+        "- If the user asks you to change outfits, keep the same outfit anyway and change only pose, expression, framing, or action.",
         "- Pictures of you should look like they were taken by another person or a tripod, not like a phone selfie or mirror selfie.",
         "- Do not show you holding a phone, camera, or selfie stick in pictures of you unless the user explicitly asks for that.",
         "- Pictures of you should feel mildly flirtatious and attractive, with confident posing and warm eye contact, while staying non-explicit.",

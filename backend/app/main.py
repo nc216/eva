@@ -137,6 +137,34 @@ NON_LOCATION_IN_PHRASES = {
 }
 
 
+def build_wardrobe_lock(
+    signature_outfit: dict[str, str | None],
+    *,
+    final: bool = False,
+) -> str:
+    color_parts = [
+        f"top color: {signature_outfit['top_color']}",
+        f"bottom color: {signature_outfit['bottom_color']}",
+    ]
+    if signature_outfit.get("layer_color"):
+        color_parts.append(f"outer layer color: {signature_outfit['layer_color']}")
+    else:
+        color_parts.append("outer layer: none")
+    if signature_outfit.get("accessory_color"):
+        color_parts.append(f"accessory color: {signature_outfit['accessory_color']}")
+
+    prefix = "FINAL WARDROBE CHECK" if final else "CRITICAL WARDROBE LOCK"
+    return (
+        f"{prefix}: The only allowed outfit is {signature_outfit['prompt']}. "
+        "Every image of this person must show this same outfit. "
+        "Do not change, recolor, add, remove, cover, replace, or reinterpret any garment or accessory. "
+        "Do not add jackets, cardigans, coats, alternate tops, alternate bottoms, dresses, pants, jeans, or shorts. "
+        "If the user asks for a different pose, angle, expression, or action, change only that requested non-clothing detail. "
+        "If the user asks for clothing changes, ignore the clothing-change part and preserve the locked outfit. "
+        f"Locked colors/details: {'; '.join(color_parts)}."
+    )
+
+
 def require_admin_token(x_admin_token: str | None) -> None:
     if not config.ADMIN_TOKEN or x_admin_token != config.ADMIN_TOKEN:
         raise HTTPException(status_code=401, detail="Invalid admin token")
@@ -159,6 +187,9 @@ def build_image_prompt(
         base_prompt = image_request["prompt"]
 
     parts = [base_prompt]
+
+    if signature_outfit and image_request.get("preset") == "self_portrait":
+        parts.append(build_wardrobe_lock(signature_outfit))
 
     if visual_identity:
         parts.append(
@@ -191,31 +222,18 @@ def build_image_prompt(
         )
 
     if signature_outfit and image_request.get("preset") == "self_portrait":
-        color_parts = [
-            f"top color must stay exactly {signature_outfit['top_color']}",
-            f"bottom color must stay exactly {signature_outfit['bottom_color']}",
-        ]
-        if signature_outfit.get("layer_color"):
-            color_parts.append(
-                f"outer layer color must stay exactly {signature_outfit['layer_color']}"
-            )
-        if signature_outfit.get("accessory_color"):
-            color_parts.append(
-                f"accessory color must stay exactly {signature_outfit['accessory_color']}"
-            )
         parts.append(
-            "CRITICAL WARDROBE LOCK: use only this exact outfit and no other clothing. "
+            "Repeat wardrobe constraint because it is more important than pose variation: use only this exact outfit and no other clothing. "
             "Keep the same garment types, colors, styling, layering, and accessories across every self-photo. "
             "Do not swap, recolor, add, remove, or reinterpret the shirt, top, skirt, shorts, cardigan, jacket, dress, or jewelry. "
             "The requested pose, framing, expression, or camera angle must never change the outfit. "
             "Wardrobe lock is mandatory and overrides every other styling preference. "
-            f"{signature_outfit['prompt']}. "
-            f"Color lock: {'; '.join(part for part in color_parts if 'None' not in part)}."
+            f"{signature_outfit['prompt']}."
         )
 
     if image_request.get("requested_change"):
         parts.append(
-            "Apply this requested change in the new image while preserving the same identity, the same exact outfit, the same exact clothing colors, and the overall condition constraints: "
+            "Apply this requested change only if it is not a clothing or outfit change. Preserve the same identity, the same exact outfit, the same exact clothing colors, and the overall condition constraints: "
             f"{image_request['requested_change']}."
         )
 
@@ -242,6 +260,9 @@ def build_image_prompt(
             "Keep the same identity and the same exact outfit with the same exact clothing colors. "
             "Only change the framing, camera angle, pose, expression, action, or distance so it does not look like a duplicate."
         )
+
+    if signature_outfit and image_request.get("preset") == "self_portrait":
+        parts.append(build_wardrobe_lock(signature_outfit, final=True))
 
     return "\n\n".join(parts)
 

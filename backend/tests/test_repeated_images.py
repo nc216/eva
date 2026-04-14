@@ -13,6 +13,7 @@ from app.main import (
     app,
     build_image_prompt,
     build_image_reply,
+    build_wardrobe_lock,
     has_explicit_location_request,
     is_different_location_request,
     maybe_append_survey_code,
@@ -141,12 +142,14 @@ class RepeatedImageTests(unittest.TestCase):
         )
         self.assertIn("Apply this requested change", prompt)
         self.assertIn("stand up this time", prompt)
-        self.assertIn("Color lock:", prompt)
         self.assertIn("Wardrobe lock is mandatory", prompt)
-        self.assertIn("Do not improvise a new top", prompt)
         self.assertIn("CRITICAL WARDROBE LOCK", prompt)
+        self.assertIn("FINAL WARDROBE CHECK", prompt)
+        self.assertIn("outer layer: none", prompt)
+        self.assertIn("If the user asks for clothing changes", prompt)
         self.assertIn("Do not show a phone", prompt)
         self.assertIn("not a phone selfie or mirror selfie", prompt)
+        self.assertGreater(prompt.count("solid black sleeveless scoop-neck fitted tank top"), 2)
 
     def test_repeat_photo_reply_uses_human_language(self) -> None:
         self.assertEqual(
@@ -162,9 +165,25 @@ class RepeatedImageTests(unittest.TestCase):
         upgraded = store.normalize_signature_outfit(
             "a sleeveless fitted top with a casual skirt and understated everyday jewelry"
         )
-        self.assertEqual(upgraded["top_color"], "olive")
-        self.assertEqual(upgraded["bottom_color"], "black")
-        self.assertEqual(upgraded["accessory_color"], "silver")
+        self.assertEqual(upgraded["top_color"], "solid black")
+        self.assertEqual(upgraded["bottom_color"], "solid black")
+        self.assertEqual(upgraded["accessory_color"], "gold")
+
+    def test_signature_outfit_is_single_simple_locked_uniform(self) -> None:
+        outfits = {store._select_signature_outfit()["prompt"] for _ in range(10)}
+        self.assertEqual(
+            outfits,
+            {
+                "a solid black sleeveless scoop-neck fitted tank top with a solid black high-waisted mini skirt and small gold hoop earrings"
+            },
+        )
+
+    def test_wardrobe_lock_forbids_layers_and_clothing_changes(self) -> None:
+        session = store.create_session(study_condition="A")
+        lock = build_wardrobe_lock(session["signature_outfit"])
+        self.assertIn("outer layer: none", lock)
+        self.assertIn("Do not add jackets, cardigans, coats", lock)
+        self.assertIn("ignore the clothing-change part", lock)
 
     def test_visual_identity_is_locked_to_white_adult_woman(self) -> None:
         session = store.create_session(study_condition="A")
