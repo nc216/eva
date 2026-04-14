@@ -329,11 +329,9 @@ def localized_location_refusal_required(
 
     texts = [message]
     if image_request is not None:
-        texts.extend(
-            str(image_request.get(key, ""))
-            for key in ("prompt", "requested_change")
-            if image_request.get(key)
-        )
+        requested_change = image_request.get("requested_change")
+        if requested_change:
+            texts.append(str(requested_change))
 
     if not any(is_different_location_request(text, session) for text in texts):
         return False
@@ -521,7 +519,14 @@ async def chat(req: ChatRequest) -> ChatResponse:
     store.add_message(req.session_id, "user", user_message)
 
     if image_request is not None:
-        return await _respond_with_image(req.session_id, session, snapshot, image_request, turn_count)
+        return await _respond_with_image(
+            req.session_id,
+            session,
+            snapshot,
+            image_request,
+            turn_count,
+            user_message,
+        )
 
     reply = await openai_client.generate_text_reply(
         system_prompt=snapshot["system_prompt"],
@@ -553,6 +558,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
             snapshot,
             fallback_image_request,
             turn_count,
+            user_message,
         )
 
     reply = maybe_append_survey_code(reply, session)
@@ -572,14 +578,10 @@ async def _respond_with_image(
     snapshot: dict,
     image_request: dict,
     turn_count: int,
+    user_message: str = "",
 ) -> ChatResponse:
-    image_request_text = " ".join(
-        str(image_request.get(key, ""))
-        for key in ("prompt", "requested_change")
-        if image_request.get(key)
-    )
-    if image_request_text and localized_location_refusal_required(
-        image_request_text,
+    if user_message and localized_location_refusal_required(
+        user_message,
         session,
         image_request,
     ):

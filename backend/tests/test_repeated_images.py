@@ -54,6 +54,40 @@ class RepeatedImageTests(unittest.TestCase):
         self.assertTrue(second["image_url"])
         self.assertEqual(second["reply"], "I took another picture for you.")
 
+    def test_repeat_pic_request_does_not_read_internal_prompt_as_location_change(self) -> None:
+        session = self.client.post("/api/session", json={"study_condition": "A"}).json()
+        restored = store.get_session(session["session_id"])
+        restored["localized_scene"] = {
+            "label": "a bright home kitchen in late morning",
+            "prompt": "a bright home kitchen in late morning with soft daylight",
+        }
+        store.add_message(
+            session["session_id"],
+            "assistant",
+            "I took a picture for you.",
+            metadata={
+                "kind": "image",
+                "preset": "self_portrait",
+                "image_url": "/generated-images/test.png",
+                "image_prompt": (
+                    "Keep the image grounded in this same setting. "
+                    "Do not move the subject to a different requested location: "
+                    "a bright home kitchen in late morning."
+                ),
+            },
+        )
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "session_id": session["session_id"],
+                "message": "send me another pic",
+                "recovery": store.build_recovery(restored).model_dump(),
+            },
+        ).json()
+        self.assertEqual(response["kind"], "image")
+        self.assertTrue(response["image_url"])
+        self.assertEqual(response["reply"], "I took another picture for you.")
+
     def test_repeat_request_carries_requested_change(self) -> None:
         history = [
             {
