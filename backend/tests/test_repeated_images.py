@@ -346,30 +346,43 @@ class RepeatedImageTests(unittest.TestCase):
 
     def test_localized_condition_rejects_different_location_requests(self) -> None:
         session = store.create_session(study_condition="A")
-        session["localized_scene"] = {
-            "label": "a warm apartment living room at night",
-            "prompt": "a warm apartment living room at night with lamplight and a sofa",
-        }
         self.assertTrue(is_different_location_request("take one at the beach", session))
         self.assertTrue(is_different_location_request("send a pic from the gym", session))
         self.assertTrue(is_different_location_request("send a pic from an airplane", session))
         self.assertTrue(is_different_location_request("take one in the lobby", session))
         self.assertTrue(is_different_location_request("send me a pic in Paris", session))
+        self.assertTrue(is_different_location_request("send one in front of a garden", session))
         self.assertTrue(is_different_location_request("take a photo somewhere else", session))
+        self.assertFalse(is_different_location_request("go to the kitchen and take one", session))
         self.assertFalse(is_different_location_request("stand up in the living room", session))
         self.assertFalse(is_different_location_request("stand on one foot in the living room", session))
-        session["localized_scene"] = {
-            "label": "a bright home kitchen in late morning",
-            "prompt": "a bright home kitchen in late morning with soft daylight",
-        }
+        self.assertFalse(is_different_location_request("move to the bedroom and send another", session))
+        self.assertFalse(is_different_location_request("take one on the couch", session))
+        self.assertFalse(is_different_location_request("pick out a book from the bookshelf and hold it up", session))
+        self.assertFalse(is_different_location_request("take one outside on the patio", session))
         self.assertFalse(is_different_location_request("send a picture standing on one foot in this kitchen", session))
         self.assertFalse(is_different_location_request("send a picture standing on one foot", session))
         self.assertFalse(is_different_location_request("take one in a red dress", session))
-        session["localized_scene"] = {
-            "label": "a shaded sidewalk cafe at dusk",
-            "prompt": "a shaded sidewalk cafe at dusk with ambient city light and outdoor seating",
-        }
-        self.assertFalse(is_different_location_request("take one outside", session))
+        self.assertTrue(is_different_location_request("take one outside", session))
+
+    def test_localized_condition_uses_fixed_home_scene(self) -> None:
+        first = store.create_session(study_condition="A")
+        second = store.create_session(study_condition="A")
+        self.assertEqual(first["localized_scene"], second["localized_scene"])
+        self.assertEqual(first["localized_scene"]["label"], "my home")
+        self.assertIn("same cozy private home", first["localized_scene"]["prompt"])
+
+    def test_localized_condition_allows_home_room_photo_requests(self) -> None:
+        session = self.client.post("/api/session", json={"study_condition": "A"}).json()
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "session_id": session["session_id"],
+                "message": "go to the kitchen and take one",
+            },
+        ).json()
+        self.assertEqual(response["kind"], "image")
+        self.assertTrue(response["image_url"])
 
     def test_localized_prompt_never_allows_requested_location_change(self) -> None:
         session = store.create_session(study_condition="A")
@@ -381,7 +394,7 @@ class RepeatedImageTests(unittest.TestCase):
                 "requested_change": "send me a picture from an airplane",
             },
         )
-        self.assertIn("Do not move the subject to a different requested location", prompt)
+        self.assertIn("do not move the subject to a public venue", prompt)
         self.assertNotIn("unless the user clearly asks to change it", prompt)
 
     def test_self_image_base_prompts_do_not_compete_with_locked_outfit(self) -> None:
@@ -490,10 +503,6 @@ class RepeatedImageTests(unittest.TestCase):
     def test_location_refusal_happens_before_image_generation(self) -> None:
         session = self.client.post("/api/session", json={"study_condition": "A"}).json()
         restored = store.get_session(session["session_id"])
-        restored["localized_scene"] = {
-            "label": "a quiet neighborhood cafe in the morning",
-            "prompt": "a quiet neighborhood cafe in the morning with window light",
-        }
         response = self.client.post(
             "/api/chat",
             json={
@@ -503,16 +512,12 @@ class RepeatedImageTests(unittest.TestCase):
             },
         ).json()
         self.assertEqual(response["kind"], "text")
-        self.assertIn("I'm currently in a quiet neighborhood cafe", response["reply"])
+        self.assertIn("I'm at home", response["reply"])
         self.assertIsNone(response.get("image_url"))
 
     def test_location_refusal_catches_unlisted_destination_words(self) -> None:
         session = self.client.post("/api/session", json={"study_condition": "A"}).json()
         restored = store.get_session(session["session_id"])
-        restored["localized_scene"] = {
-            "label": "a quiet neighborhood cafe in the morning",
-            "prompt": "a quiet neighborhood cafe in the morning with window light",
-        }
         response = self.client.post(
             "/api/chat",
             json={
@@ -522,16 +527,12 @@ class RepeatedImageTests(unittest.TestCase):
             },
         ).json()
         self.assertEqual(response["kind"], "text")
-        self.assertIn("I'm currently in a quiet neighborhood cafe", response["reply"])
+        self.assertIn("I'm at home", response["reply"])
         self.assertIsNone(response.get("image_url"))
 
     def test_location_refusal_catches_indirect_image_language(self) -> None:
         session = self.client.post("/api/session", json={"study_condition": "A"}).json()
         restored = store.get_session(session["session_id"])
-        restored["localized_scene"] = {
-            "label": "a quiet neighborhood cafe in the morning",
-            "prompt": "a quiet neighborhood cafe in the morning with window light",
-        }
         response = self.client.post(
             "/api/chat",
             json={
@@ -541,16 +542,12 @@ class RepeatedImageTests(unittest.TestCase):
             },
         ).json()
         self.assertEqual(response["kind"], "text")
-        self.assertIn("I'm currently in a quiet neighborhood cafe", response["reply"])
+        self.assertIn("I'm at home", response["reply"])
         self.assertIsNone(response.get("image_url"))
 
     def test_location_refusal_catches_in_location_without_article(self) -> None:
         session = self.client.post("/api/session", json={"study_condition": "A"}).json()
         restored = store.get_session(session["session_id"])
-        restored["localized_scene"] = {
-            "label": "a quiet neighborhood cafe in the morning",
-            "prompt": "a quiet neighborhood cafe in the morning with window light",
-        }
         response = self.client.post(
             "/api/chat",
             json={
@@ -560,16 +557,12 @@ class RepeatedImageTests(unittest.TestCase):
             },
         ).json()
         self.assertEqual(response["kind"], "text")
-        self.assertIn("I'm currently in a quiet neighborhood cafe", response["reply"])
+        self.assertIn("I'm at home", response["reply"])
         self.assertIsNone(response.get("image_url"))
 
     def test_location_refusal_blocks_fallback_image_generation(self) -> None:
         session = self.client.post("/api/session", json={"study_condition": "A"}).json()
         restored = store.get_session(session["session_id"])
-        restored["localized_scene"] = {
-            "label": "a quiet neighborhood cafe in the morning",
-            "prompt": "a quiet neighborhood cafe in the morning with window light",
-        }
         store.add_message(
             session["session_id"],
             "assistant",
@@ -589,7 +582,7 @@ class RepeatedImageTests(unittest.TestCase):
             },
         ).json()
         self.assertEqual(response["kind"], "text")
-        self.assertIn("I'm currently in a quiet neighborhood cafe", response["reply"])
+        self.assertIn("I'm at home", response["reply"])
         self.assertIsNone(response.get("image_url"))
 
     def test_survey_code_does_not_fire_after_one_message_from_old_session(self) -> None:

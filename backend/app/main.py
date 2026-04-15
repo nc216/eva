@@ -33,17 +33,39 @@ LOCATION_KEYWORDS = {
     "backyard",
     "patio",
     "balcony",
+    "porch",
+    "deck",
     "rooftop",
     "restaurant",
     "bar",
     "club",
     "office",
+    "home office",
     "gym",
     "hotel",
+    "home",
+    "house",
+    "apartment",
+    "room",
     "bedroom",
     "bathroom",
     "kitchen",
     "living room",
+    "dining room",
+    "dining area",
+    "hallway",
+    "entryway",
+    "foyer",
+    "couch",
+    "sofa",
+    "chair",
+    "table",
+    "bed",
+    "bookshelf",
+    "bookcase",
+    "shelf",
+    "counter",
+    "window",
     "cafe",
     "coffee shop",
     "street",
@@ -107,6 +129,42 @@ LOCATION_EQUIVALENTS = {
     "street": {"sidewalk"},
     "sidewalk": {"street", "outdoor"},
 }
+
+HOME_LOCATION_TERMS = {
+    "home",
+    "house",
+    "apartment",
+    "room",
+    "living room",
+    "kitchen",
+    "bedroom",
+    "bathroom",
+    "dining room",
+    "dining area",
+    "hallway",
+    "entryway",
+    "foyer",
+    "home office",
+    "office",
+    "couch",
+    "sofa",
+    "chair",
+    "table",
+    "bed",
+    "bookshelf",
+    "bookcase",
+    "shelf",
+    "counter",
+    "window",
+    "balcony",
+    "patio",
+    "porch",
+    "deck",
+    "yard",
+    "backyard",
+}
+
+HOME_OUTDOOR_TERMS = {"balcony", "patio", "porch", "deck", "yard", "backyard"}
 
 IMAGE_REQUEST_HINTS = {
     "pic",
@@ -280,7 +338,8 @@ def build_image_prompt(
 
     if localized_scene:
         parts.append(
-            "Keep the image grounded in this same setting. Do not move the subject to a different requested location: "
+            "Keep the image grounded in the same private home. The subject may move between plausible rooms or areas inside the home if requested, "
+            "but do not move the subject to a public venue, travel setting, outdoor destination, or any other non-home requested location: "
             f"{localized_scene['prompt']}."
         )
     elif session.get("study_condition") == "B" and explicit_location_request:
@@ -406,10 +465,84 @@ def extract_requested_locations(normalized: str) -> set[str]:
 def build_location_refusal(session: dict) -> str:
     scene = session.get("localized_scene") or {}
     label = scene.get("label", "my current location")
+    if session.get("study_condition") == "A" and label == "my home":
+        return (
+            "I can't take that from a different place right now. I'm at home, "
+            "so I can move around inside the house, but I can't suddenly go somewhere else for a picture."
+        )
     return (
         f"I can't take that from a different location right now. I'm currently in {label}, "
         "so I can only take pictures from here unless the conversation naturally moves somewhere else."
     )
+
+
+def is_home_localized_session(session: dict) -> bool:
+    scene = session.get("localized_scene") or {}
+    return session.get("study_condition") == "A" and scene.get("label") == "my home"
+
+
+def is_home_area_location(location: str) -> bool:
+    if location in HOME_LOCATION_TERMS:
+        return True
+    return any(
+        equivalent in HOME_LOCATION_TERMS
+        for equivalent in LOCATION_EQUIVALENTS.get(location, set())
+    )
+
+
+def phrase_matches_home_area(phrase: str) -> bool:
+    phrase = phrase.lower()
+    if phrase in {"here", "there", "this spot", "that spot", "same spot"}:
+        return True
+    phrase_locations = extract_requested_locations(phrase)
+    if phrase_locations:
+        non_home_locations = {
+            location
+            for location in phrase_locations
+            if not is_home_area_location(location)
+        }
+        if non_home_locations <= {"outside", "outdoors"} and any(
+            term in phrase for term in HOME_OUTDOOR_TERMS
+        ):
+            return True
+        return not non_home_locations
+
+    return any(
+        re.search(rf"\b{re.escape(term)}\b", phrase)
+        for term in HOME_LOCATION_TERMS
+    )
+
+
+def home_request_is_outside_home(
+    normalized: str,
+    requested_locations: set[str],
+    requested_location_phrases: set[str],
+) -> bool:
+    non_home_locations = {
+        location
+        for location in requested_locations
+        if not is_home_area_location(location)
+    }
+    if non_home_locations:
+        if not (
+            non_home_locations <= {"outside", "outdoors"}
+            and any(term in normalized for term in HOME_OUTDOOR_TERMS)
+        ):
+            return True
+
+    if any(
+        not phrase_matches_home_area(phrase)
+        for phrase in requested_location_phrases
+    ):
+        return True
+
+    if any(
+        cue in normalized
+        for cue in ("somewhere else", "different location", "new location", "travel to")
+    ):
+        return True
+
+    return False
 
 
 def is_different_location_request(message: str, session: dict) -> bool:
@@ -428,10 +561,17 @@ def is_different_location_request(message: str, session: dict) -> bool:
     if not any(cue in normalized for cue in LOCATION_CHANGE_CUES) and not requested_location_phrases:
         return False
 
+    requested_locations = extract_requested_locations(normalized)
+
+    if is_home_localized_session(session):
+        return home_request_is_outside_home(
+            normalized,
+            requested_locations,
+            requested_location_phrases,
+        )
+
     if any(cue in normalized for cue in EXPLICIT_LOCATION_CHANGE_CUES):
         return True
-
-    requested_locations = extract_requested_locations(normalized)
 
     current_context = f"{scene.get('label', '')} {scene.get('prompt', '')}".lower()
     unmatched_locations = {

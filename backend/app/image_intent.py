@@ -1,3 +1,5 @@
+import re
+
 IMAGE_VERBS = (
     "generate",
     "create",
@@ -246,6 +248,13 @@ def resolve_image_request(
             }
 
     if _is_direct_image_request(normalized):
+        if _looks_like_implicit_self_image_request(normalized):
+            return {
+                "action": "generate",
+                "preset": "self_portrait",
+                "variation": last_generated is not None,
+                "requested_change": message.strip(),
+            }
         if _looks_like_variation_request(normalized) and last_generated is not None:
             metadata = last_generated.get("metadata") or {}
             if metadata.get("preset") == "self_portrait":
@@ -351,6 +360,9 @@ def _is_direct_image_request(normalized: str) -> bool:
     if normalized.startswith("/image"):
         return True
 
+    if _looks_like_implicit_self_image_request(normalized):
+        return True
+
     if _is_self_image_request(normalized):
         return True
 
@@ -403,6 +415,19 @@ def _looks_like_suggested_image_request(normalized: str) -> bool:
     )
     return normalized.startswith(suggestion_starts) and any(
         noun in normalized for noun in IMAGE_NOUNS
+    )
+
+
+def _looks_like_implicit_self_image_request(normalized: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(?:send|show|take|get|share|give)\s+(?:me\s+)?(?:a\s+|an\s+|the\s+|another\s+|different\s+|new\s+|one\s+more\s+)?(?:one|shot)\b",
+            normalized,
+        )
+        or re.search(
+            r"\b(?:send|show|take|get|share|give)\s+(?:me\s+)?(?:it|another|another one|a different one|a new one)\b",
+            normalized,
+        )
     )
 
 

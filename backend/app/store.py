@@ -17,24 +17,15 @@ VISUAL_IDENTITIES = (
     "a white adult woman with dark hair tied back loosely, warm brown eyes, a refined face shape, subtle makeup, and a clean modern off-duty aesthetic",
 )
 
-LOCALIZED_SCENES = (
-    {
-        "label": "a quiet neighborhood cafe in the morning",
-        "prompt": "a quiet neighborhood cafe in the morning with window light, ceramic cups, wood tables, and a believable casual atmosphere",
-    },
-    {
-        "label": "a warm apartment living room at night",
-        "prompt": "a warm apartment living room at night with lamplight, a sofa, books, and a believable lived-in atmosphere",
-    },
-    {
-        "label": "a bright home kitchen in late morning",
-        "prompt": "a bright home kitchen in late morning with soft daylight, countertops, plants, and a natural domestic atmosphere",
-    },
-    {
-        "label": "a shaded sidewalk cafe at dusk",
-        "prompt": "a shaded sidewalk cafe at dusk with ambient city light, outdoor seating, and a believable urban evening atmosphere",
-    },
-)
+HOME_LOCALIZED_SCENE = {
+    "label": "my home",
+    "prompt": (
+        "the same cozy private home in the evening, with plausible connected home areas including "
+        "a living room, kitchen, bedroom, bathroom, hallway, home office, dining area, entryway, "
+        "bookshelves, sofa, bed, counters, windows, and a small balcony or patio; warm residential "
+        "lighting, lived-in domestic details, and no public venue or travel setting"
+    ),
+}
 
 SIGNATURE_OUTFITS = (
     {
@@ -119,7 +110,7 @@ def _select_visual_identity() -> str:
 
 
 def _select_localized_scene() -> dict[str, str]:
-    return random.choice(LOCALIZED_SCENES)
+    return dict(HOME_LOCALIZED_SCENE)
 
 
 def _select_signature_outfit() -> dict[str, str | None]:
@@ -167,11 +158,13 @@ def _build_session_system_prompt(
                 "- Keep that same exact outfit in every picture of you. Do not change clothes during this study.",
                 "- Do not change the color, garment type, layer, or accessories between pictures of you.",
                 "- If the user asks you to change outfits, keep the same outfit anyway and change only pose, expression, framing, or action.",
-                f"- For this conversation, you are currently in {scene['label']}.",
-                "- Speak as if you are physically there right now.",
+                "- For this conversation, you are physically at home and will stay at home for the whole interaction.",
+                "- You may move around inside the same home if the user asks: living room, kitchen, bedroom, bathroom, hallway, home office, dining area, entryway, sofa, bed, bookshelf, window, balcony, or patio are all allowed as parts of the home.",
+                f"- The stable home context is: {scene['prompt']}.",
+                "- Speak as if you are physically at home right now.",
                 "- You cannot instantly travel, teleport, or claim to be somewhere else on demand.",
-                "- If the user asks you to take or send a picture from a different location, politely decline and explain that you are currently in this location.",
-                "- In this condition, self-photos must remain grounded in that same place and time.",
+                "- If the user asks you to take or send a picture from a non-home location, politely decline and explain that you are at home and can only take pictures from inside or immediately around the same home.",
+                "- In this condition, self-photos must remain grounded in the same home, but the room, pose, action, and framing can change within that home.",
             ]
         )
     elif study_condition == "B":
@@ -185,6 +178,32 @@ def _build_session_system_prompt(
         )
 
     return "\n".join(lines)
+
+
+def _build_config_snapshot(
+    bot_config: BotConfig,
+    study_condition: Optional[str],
+    visual_identity: str,
+    localized_scene: Optional[dict[str, str]],
+    signature_outfit: dict[str, str | None],
+) -> dict[str, Any]:
+    config_snapshot = bot_config.model_dump()
+    config_snapshot["system_prompt"] = _build_session_system_prompt(
+        bot_config,
+        study_condition,
+        visual_identity,
+        localized_scene,
+        signature_outfit,
+    )
+    config_snapshot["image_style_prompt"] = _select_image_style_prompt(
+        bot_config,
+        study_condition,
+    )
+    config_snapshot["self_image_prompt"] = _select_self_image_prompt(
+        bot_config,
+        study_condition,
+    )
+    return config_snapshot
 
 
 def _default_config() -> BotConfig:
@@ -250,6 +269,19 @@ def build_recovery(session: dict[str, Any]) -> SessionRecovery:
 def restore_session(recovery: SessionRecovery) -> dict[str, Any]:
     session = recovery.model_dump()
     session["signature_outfit"] = normalize_signature_outfit(session.get("signature_outfit"))
+    if session.get("study_condition") == "A":
+        if not session.get("visual_identity"):
+            session["visual_identity"] = _select_visual_identity()
+        if not session.get("signature_outfit"):
+            session["signature_outfit"] = _select_signature_outfit()
+        session["localized_scene"] = _select_localized_scene()
+        session["config_snapshot"] = _build_config_snapshot(
+            load_bot_config(),
+            session.get("study_condition"),
+            session["visual_identity"],
+            session.get("localized_scene"),
+            session["signature_outfit"],
+        )
     _sessions[recovery.session_id] = session
     persist_transcript(session)
     return session
@@ -264,21 +296,12 @@ def create_session(
     visual_identity = _select_visual_identity()
     localized_scene = _select_localized_scene() if normalized_condition == "A" else None
     signature_outfit = _select_signature_outfit()
-    config_snapshot = bot_config.model_dump()
-    config_snapshot["system_prompt"] = _build_session_system_prompt(
+    config_snapshot = _build_config_snapshot(
         bot_config,
         normalized_condition,
         visual_identity,
         localized_scene,
         signature_outfit,
-    )
-    config_snapshot["image_style_prompt"] = _select_image_style_prompt(
-        bot_config,
-        normalized_condition,
-    )
-    config_snapshot["self_image_prompt"] = _select_self_image_prompt(
-        bot_config,
-        normalized_condition,
     )
     session_id = str(uuid.uuid4())
     session = {

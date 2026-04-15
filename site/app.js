@@ -9,7 +9,7 @@ const turnStatus = document.getElementById("turn-status");
 const botNameEl = document.getElementById("bot-name");
 const avatarLabelEl = document.getElementById("avatar-label");
 
-const SESSION_CACHE_VERSION = "v3-white-localized-location";
+const SESSION_CACHE_VERSION = "v4-home-localized-location";
 let sessionId = null;
 let turnCount = 0;
 let maxTurns = 0;
