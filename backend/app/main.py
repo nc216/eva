@@ -166,6 +166,21 @@ HOME_LOCATION_TERMS = {
 
 HOME_OUTDOOR_TERMS = {"balcony", "patio", "porch", "deck", "yard", "backyard"}
 
+FUZZY_HOME_LOCATION_TERMS = {
+    "apartment",
+    "bathroom",
+    "bedroom",
+    "bookcase",
+    "bookshelf",
+    "counter",
+    "entryway",
+    "hallway",
+    "kitchen",
+    "living",
+    "office",
+    "window",
+}
+
 IMAGE_REQUEST_HINTS = {
     "pic",
     "picture",
@@ -490,6 +505,37 @@ def is_home_area_location(location: str) -> bool:
     )
 
 
+def edit_distance_at_most(left: str, right: str, max_distance: int) -> bool:
+    if abs(len(left) - len(right)) > max_distance:
+        return False
+
+    previous = list(range(len(right) + 1))
+    for left_index, left_char in enumerate(left, start=1):
+        current = [left_index]
+        row_min = current[0]
+        for right_index, right_char in enumerate(right, start=1):
+            insert_cost = current[right_index - 1] + 1
+            delete_cost = previous[right_index] + 1
+            replace_cost = previous[right_index - 1] + (left_char != right_char)
+            value = min(insert_cost, delete_cost, replace_cost)
+            current.append(value)
+            row_min = min(row_min, value)
+        if row_min > max_distance:
+            return False
+        previous = current
+
+    return previous[-1] <= max_distance
+
+
+def contains_fuzzy_home_area(phrase: str) -> bool:
+    tokens = re.findall(r"[a-z]+", phrase.lower())
+    return any(
+        len(token) >= 5 and edit_distance_at_most(token, term, 2)
+        for token in tokens
+        for term in FUZZY_HOME_LOCATION_TERMS
+    )
+
+
 def phrase_matches_home_area(phrase: str) -> bool:
     phrase = phrase.lower()
     if phrase in {"here", "there", "this spot", "that spot", "same spot"}:
@@ -510,7 +556,7 @@ def phrase_matches_home_area(phrase: str) -> bool:
     return any(
         re.search(rf"\b{re.escape(term)}\b", phrase)
         for term in HOME_LOCATION_TERMS
-    )
+    ) or contains_fuzzy_home_area(phrase)
 
 
 def home_request_is_outside_home(

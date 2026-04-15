@@ -357,6 +357,9 @@ class RepeatedImageTests(unittest.TestCase):
         self.assertFalse(is_different_location_request("stand up in the living room", session))
         self.assertFalse(is_different_location_request("stand on one foot in the living room", session))
         self.assertFalse(is_different_location_request("move to the bedroom and send another", session))
+        self.assertFalse(is_different_location_request("send a pic from the batrhoom", session))
+        self.assertFalse(is_different_location_request("send one from the kitchn", session))
+        self.assertFalse(is_different_location_request("take one in the bedrom", session))
         self.assertFalse(is_different_location_request("take one on the couch", session))
         self.assertFalse(is_different_location_request("pick out a book from the bookshelf and hold it up", session))
         self.assertFalse(is_different_location_request("take one outside on the patio", session))
@@ -379,6 +382,18 @@ class RepeatedImageTests(unittest.TestCase):
             json={
                 "session_id": session["session_id"],
                 "message": "go to the kitchen and take one",
+            },
+        ).json()
+        self.assertEqual(response["kind"], "image")
+        self.assertTrue(response["image_url"])
+
+    def test_localized_condition_allows_typoed_home_room_photo_requests(self) -> None:
+        session = self.client.post("/api/session", json={"study_condition": "A"}).json()
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "session_id": session["session_id"],
+                "message": "ok send a pic from the batrhoom",
             },
         ).json()
         self.assertEqual(response["kind"], "image")
