@@ -119,6 +119,23 @@ IMAGE_REQUEST_HINTS = {
     "visual",
 }
 
+IMAGE_CONTENT_CHALLENGE_CUES = {
+    "where is",
+    "where's",
+    "where are",
+    "where did",
+    "i don't see",
+    "i dont see",
+    "can't see",
+    "cant see",
+    "cannot see",
+    "not visible",
+    "isn't visible",
+    "isnt visible",
+    "not there",
+    "missing",
+}
+
 NON_LOCATION_IN_PHRASES = {
     "dress",
     "shirt",
@@ -283,10 +300,16 @@ def build_image_prompt(
             "Apply this requested change only if it is not a clothing or outfit change. Preserve the same identity, the same exact outfit, the same exact clothing colors, and the overall condition constraints: "
             f"{image_request['requested_change']}."
         )
+        parts.append(
+            "If the requested change asks the person to hold, pick up, point at, use, or interact with a visible object, that object and action are mandatory and must be clearly visible in the image."
+        )
     elif image_request.get("requested_change"):
         parts.append(
             "Apply this requested change while preserving the same person identity, ethnicity, and condition constraints: "
             f"{image_request['requested_change']}."
+        )
+        parts.append(
+            "If the requested change asks the person to hold, pick up, point at, use, or interact with a visible object, that object and action are mandatory and must be clearly visible in the image."
         )
 
     if signature_outfit and image_request.get("preset") == "self_portrait" and lock_outfit:
@@ -331,6 +354,13 @@ def build_image_reply(image_request: dict, image_count: int) -> str:
     if image_count > 0 or image_request.get("variation"):
         return "I took another picture for you."
     return "I took a picture for you."
+
+
+def build_image_content_challenge_reply() -> str:
+    return (
+        "If it is not visible in the picture, then the image did not capture that part correctly. "
+        "I can try another picture and make that detail more obvious."
+    )
 
 
 def has_explicit_location_request(image_request: dict) -> bool:
@@ -444,6 +474,13 @@ def looks_like_image_request_text(message: str) -> bool:
         )
         or re.search(r"\b(?:another|different|new|one more)\s+(?:one|shot)\b", normalized)
     )
+
+
+def is_image_content_challenge(message: str, session: dict) -> bool:
+    if store.get_last_generated_image_message(session["session_id"]) is None:
+        return False
+    normalized = " ".join(message.lower().strip().split())
+    return any(cue in normalized for cue in IMAGE_CONTENT_CHALLENGE_CUES)
 
 
 def extract_requested_location_phrases(normalized: str) -> set[str]:
@@ -619,6 +656,22 @@ async def chat(req: ChatRequest) -> ChatResponse:
             image_request,
             turn_count,
             user_message,
+        )
+
+    if is_image_content_challenge(user_message, session):
+        reply = maybe_append_survey_code(build_image_content_challenge_reply(), session)
+        store.add_message(
+            req.session_id,
+            "assistant",
+            reply,
+            metadata={"kind": "text", "image_content_challenge": True},
+        )
+        return ChatResponse(
+            session_id=req.session_id,
+            kind="text",
+            reply=reply,
+            turn_number=turn_count + 1,
+            recovery=store.build_recovery(store.get_session(req.session_id) or session),
         )
 
     reply = await openai_client.generate_text_reply(

@@ -8,9 +8,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fastapi.testclient import TestClient
 
 from app import openai_client, store
-from app.image_intent import resolve_image_request
+from app.image_intent import resolve_image_fallback_request, resolve_image_request
 from app.main import (
     app,
+    build_image_content_challenge_reply,
     build_image_prompt,
     build_image_reply,
     build_wardrobe_lock,
@@ -154,6 +155,55 @@ class RepeatedImageTests(unittest.TestCase):
             self.assertTrue(result["variation"])
             self.assertEqual(result["requested_change"], message)
 
+    def test_object_interaction_followup_triggers_new_self_photo(self) -> None:
+        history = [
+            {
+                "role": "assistant",
+                "content": "I took a picture for you.",
+                "metadata": {
+                    "kind": "image",
+                    "preset": "self_portrait",
+                    "image_url": "/generated-images/test.png",
+                },
+            }
+        ]
+        result = resolve_image_request(
+            "pick out a book there and hold it up for me",
+            history,
+            True,
+        )
+        self.assertEqual(result["preset"], "self_portrait")
+        self.assertTrue(result["variation"])
+        self.assertEqual(
+            result["requested_change"],
+            "pick out a book there and hold it up for me",
+        )
+
+    def test_fallback_image_generation_preserves_object_interaction_request(self) -> None:
+        history = [
+            {
+                "role": "assistant",
+                "content": "I took a picture for you.",
+                "metadata": {
+                    "kind": "image",
+                    "preset": "self_portrait",
+                    "image_url": "/generated-images/test.png",
+                },
+            }
+        ]
+        result = resolve_image_fallback_request(
+            "pick out a book there and hold it up for me",
+            history,
+            "I took another picture for you.",
+            True,
+        )
+        self.assertEqual(result["preset"], "self_portrait")
+        self.assertTrue(result["variation"])
+        self.assertEqual(
+            result["requested_change"],
+            "pick out a book there and hold it up for me",
+        )
+
     def test_build_image_prompt_includes_requested_change_and_color_lock(self) -> None:
         session = store.create_session(study_condition="A")
         prompt = build_image_prompt(
@@ -174,7 +224,47 @@ class RepeatedImageTests(unittest.TestCase):
         self.assertIn("If the user asks for clothing changes", prompt)
         self.assertIn("Do not show a phone", prompt)
         self.assertIn("not a phone selfie or mirror selfie", prompt)
+        self.assertIn("object and action are mandatory", prompt)
         self.assertGreater(prompt.count("solid black sleeveless scoop-neck fitted tank top"), 2)
+
+    def test_image_content_challenge_reply_does_not_hallucinate_details(self) -> None:
+        reply = build_image_content_challenge_reply()
+        self.assertIn("did not capture that part correctly", reply)
+        self.assertNotIn("holding", reply)
+        self.assertNotIn("cover", reply)
+
+    def test_where_is_object_after_image_uses_nonhallucinating_reply(self) -> None:
+        async def hallucinating_text_reply(
+            system_prompt: str,
+            transcript: list[dict],
+            user_message: str,
+            temperature: float,
+        ) -> str:
+            return "In the photo, I am holding up a deep blue book."
+
+        openai_client.generate_text_reply = hallucinating_text_reply
+        session = self.client.post("/api/session", json={"study_condition": "A"}).json()
+        store.add_message(
+            session["session_id"],
+            "assistant",
+            "I took another picture for you.",
+            metadata={
+                "kind": "image",
+                "preset": "self_portrait",
+                "image_url": "/generated-images/test.png",
+            },
+        )
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "session_id": session["session_id"],
+                "message": "where's the book?",
+                "recovery": store.build_recovery(store.get_session(session["session_id"])).model_dump(),
+            },
+        ).json()
+        self.assertEqual(response["kind"], "text")
+        self.assertIn("did not capture that part correctly", response["reply"])
+        self.assertNotIn("deep blue book", response["reply"])
 
     def test_repeat_photo_reply_uses_human_language(self) -> None:
         self.assertEqual(

@@ -89,6 +89,19 @@ PHOTO_ADJUSTMENT_CUES = (
     "make the",
     "put",
     "place",
+    "pick",
+    "pick up",
+    "pick out",
+    "hold",
+    "hold up",
+    "holding",
+    "grab",
+    "bring",
+    "carry",
+    "point",
+    "point at",
+    "show me",
+    "use",
     "set it",
     "switch",
     "swap",
@@ -314,12 +327,18 @@ def resolve_image_fallback_request(
 
     metadata = last_generated.get("metadata") or {}
     if metadata.get("preset") == "self_portrait":
-        return {"action": "generate", "preset": "self_portrait", "variation": True}
+        return {
+            "action": "generate",
+            "preset": "self_portrait",
+            "variation": True,
+            "requested_change": message.strip(),
+        }
     if metadata.get("image_prompt"):
         return {
             "action": "generate",
             "prompt": metadata["image_prompt"],
             "variation": True,
+            "requested_change": message.strip(),
         }
     return None
 
