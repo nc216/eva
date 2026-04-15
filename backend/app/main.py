@@ -120,10 +120,6 @@ IMAGE_REQUEST_HINTS = {
 }
 
 IMAGE_CONTENT_CHALLENGE_CUES = {
-    "where is",
-    "where's",
-    "where are",
-    "where did",
     "i don't see",
     "i dont see",
     "can't see",
@@ -135,6 +131,20 @@ IMAGE_CONTENT_CHALLENGE_CUES = {
     "not there",
     "missing",
 }
+
+IMAGE_CONTENT_WHERE_PATTERNS = (
+    r"^where\s+is\s+",
+    r"^where's\s+",
+    r"^where\s+are\s+",
+    r"^where\s+did\s+",
+)
+
+ASSISTANT_LOCATION_QUESTIONS = (
+    "where are you",
+    "where are u",
+    "where r u",
+    "where you are",
+)
 
 NON_LOCATION_IN_PHRASES = {
     "dress",
@@ -480,7 +490,15 @@ def is_image_content_challenge(message: str, session: dict) -> bool:
     if store.get_last_generated_image_message(session["session_id"]) is None:
         return False
     normalized = " ".join(message.lower().strip().split())
-    return any(cue in normalized for cue in IMAGE_CONTENT_CHALLENGE_CUES)
+    normalized = normalized.rstrip("?!.")
+    if normalized in ASSISTANT_LOCATION_QUESTIONS:
+        return False
+    if any(cue in normalized for cue in IMAGE_CONTENT_CHALLENGE_CUES):
+        return True
+    return any(
+        re.search(pattern, normalized)
+        for pattern in IMAGE_CONTENT_WHERE_PATTERNS
+    )
 
 
 def extract_requested_location_phrases(normalized: str) -> set[str]:

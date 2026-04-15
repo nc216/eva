@@ -266,6 +266,39 @@ class RepeatedImageTests(unittest.TestCase):
         self.assertIn("did not capture that part correctly", response["reply"])
         self.assertNotIn("deep blue book", response["reply"])
 
+    def test_where_are_you_after_image_is_not_image_content_challenge(self) -> None:
+        async def location_text_reply(
+            system_prompt: str,
+            transcript: list[dict],
+            user_message: str,
+            temperature: float,
+        ) -> str:
+            return "I'm in the kitchen right now."
+
+        openai_client.generate_text_reply = location_text_reply
+        session = self.client.post("/api/session", json={"study_condition": "A"}).json()
+        store.add_message(
+            session["session_id"],
+            "assistant",
+            "I took another picture for you.",
+            metadata={
+                "kind": "image",
+                "preset": "self_portrait",
+                "image_url": "/generated-images/test.png",
+            },
+        )
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "session_id": session["session_id"],
+                "message": "where are you",
+                "recovery": store.build_recovery(store.get_session(session["session_id"])).model_dump(),
+            },
+        ).json()
+        self.assertEqual(response["kind"], "text")
+        self.assertEqual(response["reply"], "I'm in the kitchen right now.")
+        self.assertNotIn("did not capture that part correctly", response["reply"])
+
     def test_repeat_photo_reply_uses_human_language(self) -> None:
         self.assertEqual(
             build_image_reply({"variation": True}, 1),
