@@ -130,6 +130,30 @@ class RepeatedImageTests(unittest.TestCase):
         self.assertEqual(result["preset"], "self_portrait")
         self.assertTrue(result["variation"])
 
+    def test_unorthodox_prior_image_change_requests_trigger_new_self_photo(self) -> None:
+        history = [
+            {
+                "role": "assistant",
+                "content": "I took a picture for you.",
+                "metadata": {
+                    "kind": "image",
+                    "preset": "self_portrait",
+                    "image_url": "/generated-images/test.png",
+                },
+            }
+        ]
+        for message in (
+            "change it so you are in front of a garden",
+            "make it in front of a garden",
+            "put yourself in front of a garden",
+            "change the background to a garden",
+            "with a garden behind you",
+        ):
+            result = resolve_image_request(message, history, True)
+            self.assertEqual(result["preset"], "self_portrait")
+            self.assertTrue(result["variation"])
+            self.assertEqual(result["requested_change"], message)
+
     def test_build_image_prompt_includes_requested_change_and_color_lock(self) -> None:
         session = store.create_session(study_condition="A")
         prompt = build_image_prompt(
@@ -210,6 +234,13 @@ class RepeatedImageTests(unittest.TestCase):
         self.assertTrue(is_different_location_request("send me a pic in Paris", session))
         self.assertTrue(is_different_location_request("take a photo somewhere else", session))
         self.assertFalse(is_different_location_request("stand up in the living room", session))
+        self.assertFalse(is_different_location_request("stand on one foot in the living room", session))
+        session["localized_scene"] = {
+            "label": "a bright home kitchen in late morning",
+            "prompt": "a bright home kitchen in late morning with soft daylight",
+        }
+        self.assertFalse(is_different_location_request("send a picture standing on one foot in this kitchen", session))
+        self.assertFalse(is_different_location_request("send a picture standing on one foot", session))
         self.assertFalse(is_different_location_request("take one in a red dress", session))
         session["localized_scene"] = {
             "label": "a shaded sidewalk cafe at dusk",
@@ -301,6 +332,25 @@ class RepeatedImageTests(unittest.TestCase):
         self.assertIn("red dress", prompt)
         self.assertNotIn("CRITICAL WARDROBE LOCK", prompt)
         self.assertNotIn("FINAL WARDROBE CHECK", prompt)
+
+    def test_nonlocalized_condition_allows_unorthodox_outfit_change_followup(self) -> None:
+        session = store.create_session(study_condition="B")
+        history = [
+            {
+                "role": "assistant",
+                "content": "I took a picture for you.",
+                "metadata": {
+                    "kind": "image",
+                    "preset": "self_portrait",
+                    "image_url": "/generated-images/test.png",
+                },
+            }
+        ]
+        image_request = resolve_image_request("change it to a red dress", history, True)
+        prompt = build_image_prompt(session, session["config_snapshot"], image_request)
+        self.assertFalse(should_lock_outfit(session, image_request))
+        self.assertIn("allow the requested outfit", prompt)
+        self.assertIn("red dress", prompt)
 
     def test_localized_condition_still_locks_outfit_when_requested_to_change(self) -> None:
         session = store.create_session(study_condition="A")

@@ -62,6 +62,8 @@ async def generate_image_bytes(
         model=config.OPENAI_IMAGE_MODEL,
         prompt=f"{image_style_prompt}\n\nUser request: {user_message}",
         size="1024x1024",
+        quality=config.OPENAI_IMAGE_QUALITY,
+        output_format=config.OPENAI_IMAGE_FORMAT,
     )
     image_base64 = response.data[0].b64_json
     return b64decode(image_base64)

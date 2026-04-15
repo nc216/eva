@@ -19,6 +19,10 @@ services:
         value: gpt-4.1-mini
       - key: OPENAI_IMAGE_MODEL
         value: gpt-image-1
+      - key: OPENAI_IMAGE_QUALITY
+        value: low
+      - key: OPENAI_IMAGE_FORMAT
+        value: jpeg
       - key: ALLOWED_ORIGINS
         value: "*"
       - key: MOCK_MODE

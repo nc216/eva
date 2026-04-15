@@ -140,6 +140,20 @@ NON_LOCATION_IN_PHRASES = {
     "angle",
     "frame",
     "framing",
+    "foot",
+    "feet",
+    "leg",
+    "legs",
+    "hand",
+    "hands",
+    "arm",
+    "arms",
+    "toe",
+    "toes",
+    "knee",
+    "knees",
+    "one foot",
+    "one leg",
 }
 
 CLOTHING_CHANGE_KEYWORDS = {
@@ -707,7 +721,11 @@ async def _respond_with_image(
         user_message=image_prompt,
         image_style_prompt=snapshot["image_style_prompt"],
     )
-    image_extension = "svg" if config.MOCK_MODE or not config.OPENAI_API_KEY else "png"
+    image_extension = (
+        "svg"
+        if config.MOCK_MODE or not config.OPENAI_API_KEY
+        else config.OPENAI_IMAGE_FORMAT.replace("jpeg", "jpg")
+    )
     image_name = store.save_generated_image(image_bytes, extension=image_extension)
     image_url = f"/generated-images/{image_name}"
     image_count = store.get_image_count(session_id)
